@@ -1,5 +1,8 @@
 from itertools import product
 
+# Siguientes pasos:
+# - Uniformizar formularios de inscripción de yakus y rurus
+# - Conectar formularios con el algoritmo
 class Ruru:
     def __init__(self, nombre, area, opciones, disponibilidad, idioma, grado):
         self.nombre = nombre
