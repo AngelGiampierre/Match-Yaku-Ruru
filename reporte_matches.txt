@@ -1,0 +1,42 @@
+=== MATCHES PRINCIPALES (2+ HORAS) ===
+
+Yaku1 enseña a:
+  - Ruru1 (ajedrez, 2.0 horas)
+
+Yaku10 enseña a:
+  - Ruru3 (matemática, 4.0 horas)
+
+Yaku9 enseña a:
+  - Ruru4 (comunicación, 4.0 horas)
+
+Yaku8 enseña a:
+  - Ruru5 (música, 4.0 horas)
+
+Yaku6 enseña a:
+  - Ruru6 (matemática, 2.0 horas)
+
+Yaku7 enseña a:
+  - Ruru7 (pintura, 4.0 horas)
+
+Yaku12 enseña a:
+  - Ruru8 (matemática, 3.0 horas)
+  - Ruru15 (matemática, 2.0 horas)
+
+Yaku3 enseña a:
+  - Ruru10 (música, 2.0 horas)
+
+=== MATCHES SECUNDARIOS (1+ HORA) ===
+
+=== YAKUS SIN EMPAREJAR ===
+Yaku2 (opciones: comunicación, oratoria)
+Yaku4 (opciones: dibujo, pintura)
+Yaku5 (opciones: psicología, oratoria)
+Yaku11 (opciones: música, psicología)
+
+=== RURUS SIN EMPAREJAR ===
+Ruru2 (opciones: dibujo, pintura)
+Ruru9 (opciones: comunicación, oratoria)
+Ruru11 (opciones: pintura, dibujo)
+Ruru12 (opciones: música, inglés)
+Ruru13 (opciones: matemática, ajedrez)
+Ruru14 (opciones: comunicación, oratoria)

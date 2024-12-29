@@ -3,96 +3,321 @@ from itertools import product
 # Siguientes pasos:
 # - Uniformizar formularios de inscripción de yakus y rurus
 # - Conectar formularios con el algoritmo
+
 class Ruru:
-    def __init__(self, nombre, area, opciones, disponibilidad, idioma, grado):
+    def __init__(self, nombre, opciones, disponibilidad, idioma, grado):
         self.nombre = nombre
-        self.area = area
         self.opciones = opciones  # Lista de opciones en orden de preferencia
         self.disponibilidad = disponibilidad  # Diccionario con horarios por día
         self.idioma = idioma
         self.grado = grado  # Grado escolar del Ruru
 
 class Yaku:
-    def __init__(self, nombre, area, cursos, disponibilidad, idioma, grados, preferencias):
+    def __init__(self, nombre, opciones, disponibilidad, idioma, grados):
         self.nombre = nombre
-        self.area = area
-        self.cursos = cursos  # Lista de cursos que enseña
+        self.opciones = opciones  # Lista de opciones en orden de preferencia
         self.disponibilidad = disponibilidad  # Diccionario con horarios por día
         self.idioma = idioma
         self.grados = grados  # Lista de grados que puede enseñar
-        self.preferencias = preferencias  # Lista de cursos en orden de preferencia
 
-def encontrar_match(rurus, yakus):
-    mejor_asignacion = []
-    max_horas = 0
+class MatchMaker:
+    def es_idioma_compatible(self, idioma_ruru, idioma_yaku):
+        """
+        Ajusta esta función si necesitas más casos de compatibilidad
+        """
+        if idioma_ruru == idioma_yaku:
+            return True
+        # Ejemplo adicional: "Español y Quechua" compatible con "Español"
+        if idioma_ruru == "Español y Quechua" and idioma_yaku == "Español":
+            return True
+        return False
 
-    def es_idioma_compatible(idioma_ruru, idioma_yaku):
-        return idioma_ruru == idioma_yaku or (idioma_ruru == "Español y Quechua" and idioma_yaku == "Solo Español")
+    def _es_match_valido(self, ruru, yaku):
+        """
+        Verifica si hay al menos una opción en común, idioma compatible y grado válido.
+        """
+        return (
+            any(opcion in yaku.opciones for opcion in ruru.opciones) and
+            self.es_idioma_compatible(ruru.idioma, yaku.idioma) and
+            ruru.grado in yaku.grados
+        )
 
-    def calcular_horas_asignadas(interseccion_horarios):
-        horas_totales = 0
-        for horas_por_dia in interseccion_horarios.values():
-            for inicio, fin in horas_por_dia:
-                horas_totales += fin - inicio
-        return horas_totales
+    def calcular_horas_asignadas(self, interseccion):
+        """
+        Calcula cuántas horas hay en la intersección de horarios.
+        """
+        total_horas = 0
+        for dia, rangos in interseccion.items():
+            for (inicio, fin) in rangos:
+                h1 = (inicio // 100) + (inicio % 100) / 60
+                h2 = (fin // 100) + (fin % 100) / 60
+                total_horas += (h2 - h1)
+        return round(total_horas, 1)
 
-    def backtrack(asignaciones, rurus_restantes):
-        nonlocal mejor_asignacion, max_horas
-
-        if not rurus_restantes:
-            horas_totales = sum([calcular_horas_asignadas(horas) for _, _, _, horas, _ in asignaciones])
-            if horas_totales > max_horas:
-                max_horas = horas_totales
-                mejor_asignacion = asignaciones[:]
-            return
-
-        ruru = rurus_restantes[0]
-        for yaku in yakus:
-            if yaku.area == ruru.area and es_idioma_compatible(ruru.idioma, yaku.idioma) and ruru.grado in yaku.grados:
-                if ruru.area == "Bienestar":
-                    interseccion_horarios = encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad, requerir_dias_distintos=False)
-                    if interseccion_horarios:
-                        horas_asignadas = calcular_horas_asignadas(interseccion_horarios)
-                        if horas_asignadas >= 2:
-                            asignaciones.append((ruru.nombre, yaku.nombre, "Bienestar", interseccion_horarios, 0))
-                            backtrack(asignaciones, rurus_restantes[1:])
-                            asignaciones.pop()
-                else:
-                    for r_opcion in ruru.opciones:
-                        if r_opcion in yaku.cursos:
-                            y_preferencia = yaku.preferencias.index(r_opcion) if r_opcion in yaku.preferencias else len(yaku.preferencias)
-                            interseccion_horarios = encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad, requerir_dias_distintos=False)
-                            if interseccion_horarios:
-                                horas_asignadas = calcular_horas_asignadas(interseccion_horarios)
-                                if horas_asignadas >= 2:  # Mínimo 2 horas a la semana
-                                    asignaciones.append((ruru.nombre, yaku.nombre, r_opcion, interseccion_horarios, y_preferencia))
-                                    backtrack(asignaciones, rurus_restantes[1:])
-                                    asignaciones.pop()
-
-    backtrack([], rurus)
-    return sorted(mejor_asignacion, key=lambda x: x[4]), max_horas
-
-def encontrar_interseccion(horarios_ruru, horarios_yaku, requerir_dias_distintos=False):
-    interseccion = {}
-    dias_distintos = 0
-
-    for dia, horas_r in horarios_ruru.items():
-        if dia in horarios_yaku:
-            for rango_r in horas_r:
-                for rango_y in horarios_yaku[dia]:
-                    inicio = max(rango_r[0], rango_y[0])
-                    fin = min(rango_r[1], rango_y[1])
-                    if inicio < fin:
-                        if dia not in interseccion:
-                            interseccion[dia] = []
-                        interseccion[dia].append((inicio, fin))
-                        dias_distintos += 1
-
-    if dias_distintos >= 1:
+    def encontrar_interseccion(self, horarios_ruru, horarios_yaku):
+        """
+        Retorna la intersección de horarios entre ruru y yaku, sin modificar nada.
+        """
+        interseccion = {}
+        for dia, rangos_r in horarios_ruru.items():
+            if dia in horarios_yaku:
+                rangos_y = horarios_yaku[dia]
+                for (i_ruru, f_ruru) in rangos_r:
+                    for (i_yaku, f_yaku) in rangos_y:
+                        inicio = max(i_ruru, i_yaku)
+                        fin = min(f_ruru, f_yaku)
+                        if inicio < fin:
+                            if dia not in interseccion:
+                                interseccion[dia] = []
+                            interseccion[dia].append((inicio, fin))
         return interseccion
-    else:
-        return {}
 
+    def encontrar_match(self, rurus, yakus):
+        matches_principales = []
+        matches_secundarios = []
+
+        # Diccionario para llevar cuenta de cuántos Rurus tiene cada Yaku
+        rurus_por_yaku = {yaku.nombre: 0 for yaku in yakus}
+
+        # Fase 1: matches de 2+ horas
+        for ruru in rurus:
+            mejor_match = None
+            mejor_horas = 0.0
+            menor_carga = float('inf')  # Para contar cuántos Rurus ya tiene el Yaku
+
+            for yaku in yakus:
+                if self._es_match_valido(ruru, yaku):
+                    inter = self.encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad)
+                    horas = self.calcular_horas_asignadas(inter)
+                    if horas >= 2:
+                        carga_actual = rurus_por_yaku[yaku.nombre]
+                        # Priorizar Yakus con menos carga
+                        if (horas > mejor_horas) or (horas == mejor_horas and carga_actual < menor_carga):
+                            mejor_horas = horas
+                            menor_carga = carga_actual
+                            opcion_comun = next(op for op in ruru.opciones if op in yaku.opciones)
+                            mejor_match = (ruru.nombre, yaku.nombre, opcion_comun, inter, 0)
+
+            if mejor_match:
+                matches_principales.append(mejor_match)
+                # Actualizar el contador de Rurus para este Yaku
+                rurus_por_yaku[mejor_match[1]] += 1
+
+        # Identificar rurus sin match principal 
+        rurus_sin_match = [r for r in rurus if not any(m[0] == r.nombre for m in matches_principales)]
+        
+        # Fase 2: matches de 1+ hora (similar a la fase 1 pero con diferente umbral de horas)
+        for ruru in rurus_sin_match:
+            mejor_match = None
+            mejor_horas = 0.0
+            menor_carga = float('inf')
+
+            for yaku in yakus:
+                if self._es_match_valido(ruru, yaku):
+                    inter = self.encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad)
+                    horas = self.calcular_horas_asignadas(inter)
+                    if horas >= 1:
+                        carga_actual = rurus_por_yaku[yaku.nombre]
+                        if (horas > mejor_horas) or (horas == mejor_horas and carga_actual < menor_carga):
+                            mejor_horas = horas
+                            menor_carga = carga_actual
+                            opcion_comun = next(op for op in ruru.opciones if op in yaku.opciones)
+                            mejor_match = (ruru.nombre, yaku.nombre, opcion_comun, inter, 0)
+
+            if mejor_match:
+                matches_secundarios.append(mejor_match)
+                rurus_por_yaku[mejor_match[1]] += 1
+
+        total_horas_principales = sum(self.calcular_horas_asignadas(m[3]) for m in matches_principales)
+        return matches_principales, matches_secundarios, total_horas_principales
+
+    def _procesar_match(self, ruru, yaku, asignaciones, rurus_restantes, backtrack_fn, yakus_usados):
+        if ruru.area == "Bienestar":
+            self._procesar_match_bienestar(ruru, yaku, asignaciones, rurus_restantes, backtrack_fn, yakus_usados)
+        else:
+            self._procesar_match_regular(ruru, yaku, asignaciones, rurus_restantes, backtrack_fn, yakus_usados)
+
+    def _procesar_match_bienestar(self, ruru, yaku, asignaciones, rurus_restantes, backtrack_fn, yakus_usados):
+        interseccion_horarios = self.encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad)
+        if interseccion_horarios:
+            horas_asignadas = self.calcular_horas_asignadas(interseccion_horarios)
+            if horas_asignadas >= 2:
+                asignaciones.append((ruru.nombre, yaku.nombre, "Bienestar", interseccion_horarios, 0))
+                backtrack_fn(asignaciones, rurus_restantes[1:], yakus_usados)
+                asignaciones.pop()
+
+    def _procesar_match_regular(self, ruru, yaku, asignaciones, rurus_restantes, backtrack_fn, yakus_usados):
+        for r_opcion in ruru.opciones:
+            if r_opcion in yaku.cursos:
+                y_preferencia = yaku.preferencias.index(r_opcion) if r_opcion in yaku.preferencias else len(yaku.preferencias)
+                interseccion_horarios = self.encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad)
+                if interseccion_horarios:
+                    horas_asignadas = self.calcular_horas_asignadas(interseccion_horarios)
+                    if horas_asignadas >= 2:
+                        asignaciones.append((ruru.nombre, yaku.nombre, r_opcion, interseccion_horarios, y_preferencia))
+                        backtrack_fn(asignaciones, rurus_restantes[1:], yakus_usados)
+                        asignaciones.pop()
+
+    def diagnosticar_ruru_sin_match(self, ruru, yakus, asignaciones_existentes):
+        print(f"\nDiagnóstico para {ruru.nombre}:")
+        print(f"Área: {ruru.area}")
+        print(f"Idioma: {ruru.idioma}")
+        print(f"Grado: {ruru.grado}")
+        print(f"Disponibilidad: {self._formato_horario(ruru.disponibilidad)}")
+        
+        for yaku in yakus:
+            print(f"\nAnalizando compatibilidad con {yaku.nombre}:")
+            print(f"Área: {yaku.area} - {'✓' if yaku.area == ruru.area else '✗'}")
+            print(f"Idioma compatible: {'✓' if MatchMaker.es_idioma_compatible(ruru.idioma, yaku.idioma) else '✗'}")
+            print(f"Grado compatible: {'✓' if ruru.grado in yaku.grados else '✗'}")
+            
+            # Verificar horarios disponibles
+            horarios_disponibles = self._obtener_horarios_disponibles(yaku, asignaciones_existentes)
+            interseccion = self.encontrar_interseccion(ruru.disponibilidad, horarios_disponibles)
+            if interseccion:
+                horas = self.calcular_horas_asignadas(interseccion)
+                print(f"Horas posibles: {horas}")
+            else:
+                print("No hay intersección de horarios")
+
+    def _formato_horario(self, horarios):
+        return {dia: [(f"{inicio//100}:{inicio%100:02d}", f"{fin//100}:{fin%100:02d}") 
+                      for inicio, fin in slots] 
+                for dia, slots in horarios.items()}
+
+    def _obtener_horarios_disponibles(self, yaku, asignaciones):
+        """Retorna todos los horarios del Yaku, permitiendo compartir"""
+        return yaku.disponibilidad
+
+    def _segunda_fase_matching(self, rurus_restantes, yakus, asignaciones_previas):
+        """Segunda fase: emparejar Rurus restantes con Yakus existentes"""
+        asignaciones_adicionales = []
+        
+        for ruru in rurus_restantes:
+            mejor_match = None
+            mejor_horas = 0
+            
+            for yaku in yakus:
+                if self._es_match_valido(ruru, yaku):
+                    # Usar directamente la disponibilidad del Yaku
+                    interseccion = self.encontrar_interseccion(ruru.disponibilidad, yaku.disponibilidad)
+                    if interseccion:
+                        horas = self.calcular_horas_asignadas(interseccion)
+                        if horas >= 1:  # Permitir matches de 1+ hora en segunda fase
+                            if horas > mejor_horas:
+                                mejor_horas = horas
+                                mejor_match = (ruru.nombre, yaku.nombre, ruru.area, interseccion, 0)
+            
+            if mejor_match:
+                asignaciones_adicionales.append(mejor_match)
+        
+        return asignaciones_adicionales
+
+class ReportGenerator:
+    def __init__(self, matchmaker):
+        self.matchmaker = matchmaker
+
+    def generar_reporte(self, rurus_originales, yakus_originales, mejor_asignacion):
+        # Identificar Rurus y Yakus emparejados
+        rurus_emparejados = set(match[0] for match in mejor_asignacion)
+        yakus_emparejados = set(match[1] for match in mejor_asignacion)
+        
+        # Identificar los que quedaron sin emparejar
+        rurus_sin_match = [ruru for ruru in rurus_originales if ruru.nombre not in rurus_emparejados]
+        yakus_sin_match = [yaku for yaku in yakus_originales if yaku.nombre not in yakus_emparejados]
+        
+        # Buscar matches secundarios
+        matches_secundarios = self.encontrar_match_secundario(rurus_sin_match, yakus_sin_match)
+        
+        # Generar el reporte
+        self._escribir_reporte(mejor_asignacion, matches_secundarios, yakus_sin_match, rurus_sin_match)
+
+    def _escribir_reporte(self, mejor_asignacion, matches_secundarios, yakus_sin_match, rurus_sin_match):
+        # Organizamos los matches por Yaku para mostrar todos los Rurus asociados
+        matches_por_yaku = {}
+        for match in mejor_asignacion:
+            yaku_nombre = match[1]
+            if yaku_nombre not in matches_por_yaku:
+                matches_por_yaku[yaku_nombre] = []
+            matches_por_yaku[yaku_nombre].append({
+                'ruru': match[0],
+                'opcion': match[2],
+                'horas': self.matchmaker.calcular_horas_asignadas(match[3])
+            })
+
+        # Similar para matches secundarios
+        matches_secundarios_por_yaku = {}
+        for match in matches_secundarios:
+            yaku_nombre = match[1]
+            if yaku_nombre not in matches_secundarios_por_yaku:
+                matches_secundarios_por_yaku[yaku_nombre] = []
+            matches_secundarios_por_yaku[yaku_nombre].append({
+                'ruru': match[0],
+                'horas': match[2]
+            })
+
+        with open('reporte_matches.txt', 'w', encoding='utf-8') as f:
+            f.write("=== MATCHES PRINCIPALES (2+ HORAS) ===\n")
+            for yaku, matches in matches_por_yaku.items():
+                f.write(f"\n{yaku} enseña a:\n")
+                for match in matches:
+                    f.write(f"  - {match['ruru']} ({match['opcion']}, {match['horas']} horas)\n")
+            
+            f.write("\n=== MATCHES SECUNDARIOS (1+ HORA) ===\n")
+            for yaku, matches in matches_secundarios_por_yaku.items():
+                f.write(f"\n{yaku} enseña a:\n")
+                for match in matches:
+                    f.write(f"  - {match['ruru']} ({match['horas']} horas)\n")
+            
+            f.write("\n=== YAKUS SIN EMPAREJAR ===\n")
+            for yaku in yakus_sin_match:
+                f.write(f"{yaku.nombre} (opciones: {', '.join(yaku.opciones)})\n")
+                
+            f.write("\n=== RURUS SIN EMPAREJAR ===\n")
+            for ruru in rurus_sin_match:
+                f.write(f"{ruru.nombre} (opciones: {', '.join(ruru.opciones)})\n")
+
+    def encontrar_match_secundario(self, rurus_sin_match, yakus_sin_match):
+        """
+        Ahora, un Yaku no será eliminado de 'yakus_sin_match' al emparejar
+        con el primer Ruru. De esta forma, un mismo Yaku podrá
+        compartirse entre múltiples Rurus en los matches secundarios.
+        """
+        matches_secundarios = []
+        rurus_a_remover = []
+
+        for ruru in rurus_sin_match:
+            for yaku in yakus_sin_match:
+                if self._es_match_secundario_valido(ruru, yaku):
+                    interseccion_horarios = self.matchmaker.encontrar_interseccion(
+                        ruru.disponibilidad, 
+                        yaku.disponibilidad
+                    )
+                    if interseccion_horarios:
+                        horas = self.matchmaker.calcular_horas_asignadas(interseccion_horarios)
+                        if 1 <= horas < 2:
+                            matches_secundarios.append((ruru.nombre, yaku.nombre, horas))
+                            rurus_a_remover.append(ruru)
+                            break
+
+        # Removemos únicamente a los Rurus que ya se emparejaron
+        for ruru in rurus_a_remover:
+            if ruru in rurus_sin_match:
+                rurus_sin_match.remove(ruru)
+
+        return matches_secundarios
+
+    def _es_match_secundario_valido(self, ruru, yaku):
+        """
+        Verifica si hay al menos una opción en común, idioma compatible y grado válido.
+        """
+        return (
+            any(opcion in yaku.opciones for opcion in ruru.opciones) and
+            self.matchmaker.es_idioma_compatible(ruru.idioma, yaku.idioma) and
+            ruru.grado in yaku.grados
+        )
+
+# Función auxiliar para convertir horarios
 def convertir_horarios(form_data):
     dias_map = {
         "Lunes": "lunes",
@@ -113,104 +338,129 @@ def convertir_horarios(form_data):
         horarios[dia].append((inicio, fin))
     return horarios
 
-# Ejemplo de uso:
-ruru1 = Ruru("Ruru1", "Bienestar", ["ajedrez", "dibujo", "música"], 
-             convertir_horarios("Lunes 1300-1500, Jueves 1300-1800"), 
+# Ejemplos de Rurus y Yakus con las opciones permitidas:
+# matemática, comunicación, inglés, dibujo, pintura, ajedrez, música, oratoria, psicología
+
+ruru1 = Ruru("Ruru1", ["ajedrez", "música"], 
+             convertir_horarios("Lunes 1400-1600, Jueves 1300-1800"), 
              "Español", "5to Primaria")
 
-ruru2 = Ruru("Ruru2", "Arte", ["dibujo", "ajedrez", "música"], 
+ruru2 = Ruru("Ruru2", ["dibujo", "pintura"], 
              convertir_horarios("Lunes 1300-1600, Miércoles 1300-1600"), 
              "Español y Quechua", "3ero Secundaria")
 
-# Agregar más rurus
-ruru3 = Ruru("Ruru3", "Ciencia", ["química", "física"], 
+ruru3 = Ruru("Ruru3", ["matemática", "ajedrez"], 
              convertir_horarios("Martes 1000-1200, Jueves 1400-1600"), 
              "Español", "4to Secundaria")
 
-ruru4 = Ruru("Ruru4", "Deporte", ["fútbol", "baloncesto"], 
+ruru4 = Ruru("Ruru4", ["comunicación", "oratoria"], 
              convertir_horarios("Miércoles 1500-1700, Viernes 1000-1200"), 
              "Español", "1ero Secundaria")
 
-ruru5 = Ruru("Ruru5", "Música", ["guitarra", "piano"], 
+ruru5 = Ruru("Ruru5", ["música", "inglés"], 
              convertir_horarios("Lunes 1400-1600, Sábado 1000-1200"), 
              "Español", "2do Secundaria")
 
-ruru6 = Ruru("Ruru6", "Tecnología", ["programación", "robótica"], 
+ruru6 = Ruru("Ruru6", ["matemática", "ajedrez"], 
              convertir_horarios("Martes 1300-1500, Jueves 1300-1500"), 
              "Español", "3ero Secundaria")
 
-ruru7 = Ruru("Ruru7", "Arte", ["pintura", "escultura"], 
+ruru7 = Ruru("Ruru7", ["pintura", "dibujo"], 
              convertir_horarios("Lunes 1000-1200, Miércoles 1400-1600"), 
              "Español y Quechua", "5to Primaria")
 
-ruru8 = Ruru("Ruru8", "Ciencia", ["biología", "química"], 
+ruru8 = Ruru("Ruru8", ["matemática", "inglés"], 
              convertir_horarios("Martes 1000-1200, Jueves 1000-1200"), 
              "Español", "6to Primaria")
 
-ruru9 = Ruru("Ruru9", "Deporte", ["natación", "atletismo"], 
+ruru9 = Ruru("Ruru9", ["comunicación", "oratoria"], 
              convertir_horarios("Miércoles 1000-1200, Viernes 1400-1600"), 
              "Español", "4to Secundaria")
 
-ruru10 = Ruru("Ruru10", "Música", ["violín", "batería"], 
+ruru10 = Ruru("Ruru10", ["música", "psicología"], 
               convertir_horarios("Lunes 1000-1200, Domingo 1400-1600"), 
               "Español", "3ero Secundaria")
 
-yaku1 = Yaku("Yaku1", "Bienestar", ["dibujo"], 
-             convertir_horarios("Lunes 1300-1500, Martes 1300-1500, Miércoles 1300-1500, Jueves 1300-1500, Viernes 1300-1500"), 
-             "Español", ["5to Primaria", "6to Primaria"], 
-             ["dibujo"])
+# Rurus con horarios específicos
+ruru11 = Ruru("Ruru11", ["pintura", "dibujo"], 
+              convertir_horarios("Lunes 0800-0900"), # Solo 1 hora disponible
+              "Español", "1ero Secundaria")
 
-yaku2 = Yaku("Yaku2", "Arte", ["música", "ajedrez"], 
-             convertir_horarios("Lunes 1300-1400, Miércoles 1300-1400"), 
-             "Español y Quechua", ["3ero Secundaria", "4to Secundaria"], 
-             ["ajedrez", "música"])
+ruru12 = Ruru("Ruru12", ["música", "inglés"], 
+              convertir_horarios("Sábado 1500-1700"), # Horario poco común
+              "Español", "2do Secundaria")
 
-# Agregar más yakus
-yaku3 = Yaku("Yaku3", "Ciencia", ["química", "física"], 
-             convertir_horarios("Martes 1000-1200, Jueves 1400-1600"), 
-             "Español", ["4to Secundaria", "5to Secundaria"], 
-             ["química", "física"])
+ruru13 = Ruru("Ruru13", ["matemática", "ajedrez"], 
+              convertir_horarios("Domingo 0900-1000"), # Solo domingo
+              "Español y Quechua", "3ero Secundaria")
 
-yaku4 = Yaku("Yaku4", "Deporte", ["fútbol", "baloncesto"], 
-             convertir_horarios("Miércoles 1500-1700, Viernes 1000-1200"), 
-             "Español", ["1ero Secundaria", "2do Secundaria"], 
-             ["fútbol", "baloncesto"])
+ruru14 = Ruru("Ruru14", ["comunicación", "oratoria"], 
+              convertir_horarios("Viernes 2000-2200"), # Horario nocturno
+              "Español", "4to Secundaria")
 
-yaku5 = Yaku("Yaku5", "Música", ["guitarra", "piano"], 
-             convertir_horarios("Lunes 1400-1600, Sábado 1000-1200"), 
-             "Español", ["2do Secundaria", "3ero Secundaria"], 
-             ["guitarra", "piano"])
+ruru15 = Ruru("Ruru15", ["matemática", "inglés"], 
+              convertir_horarios("Martes 0900-1100, Jueves 1500-1700"), 
+              "Español", "5to Secundaria")
 
-yaku6 = Yaku("Yaku6", "Tecnología", ["programación", "robótica"], 
-             convertir_horarios("Martes 1300-1500, Jueves 1300-1500"), 
-             "Español", ["3ero Secundaria", "4to Secundaria"], 
-             ["programación", "robótica"])
+# Yakus con sus opciones
+yaku1 = Yaku("Yaku1", ["matemática", "ajedrez"], 
+             convertir_horarios("Lunes 1300-1500, Jueves 1200-1400"), 
+             "Español", ["5to Primaria", "4to Secundaria", "5to Secundaria"])
 
-yaku7 = Yaku("Yaku7", "Arte", ["pintura", "escultura"], 
-             convertir_horarios("Lunes 1000-1200, Miércoles 1400-1600"), 
-             "Español y Quechua", ["5to Primaria", "6to Primaria"], 
-             ["pintura", "escultura"])
+yaku2 = Yaku("Yaku2", ["comunicación", "oratoria"], 
+             convertir_horarios("Martes 1400-1600, Jueves 1400-1600"), 
+             "Español", ["1ero Secundaria", "2do Secundaria"])
 
-yaku8 = Yaku("Yaku8", "Ciencia", ["biología", "química"], 
-             convertir_horarios("Martes 1000-1200, Jueves 1000-1200"), 
-             "Español", ["6to Primaria", "1ero Secundaria"], 
-             ["biología", "química"])
+yaku3 = Yaku("Yaku3", ["inglés", "música"], 
+             convertir_horarios("Lunes 1000-1200, Miércoles 1000-1200"), 
+             "Español", ["2do Secundaria", "3ero Secundaria"])
 
-yaku9 = Yaku("Yaku9", "Deporte", ["natación", "atletismo"], 
-             convertir_horarios("Miércoles 1000-1200, Viernes 1400-1600"), 
-             "Español", ["4to Secundaria", "5to Secundaria"], 
-             ["natación", "atletismo"])
+yaku4 = Yaku("Yaku4", ["dibujo", "pintura"], 
+             convertir_horarios("Martes 1500-1700, Viernes 1500-1700"), 
+             "Español", ["5to Primaria", "6to Primaria"])
 
-yaku10 = Yaku("Yaku10", "Música", ["violín", "batería"], 
-              convertir_horarios("Lunes 1000-1200, Domingo 1400-1600"), 
-              "Español", ["3ero Secundaria", "4to Secundaria"], 
-              ["violín", "batería"])
+yaku5 = Yaku("Yaku5", ["psicología", "oratoria"], 
+             convertir_horarios("Lunes 1400-1600, Jueves 1400-1600"), 
+             "Español", ["3ero Secundaria", "4to Secundaria"])
 
-mejor_asignacion, max_horas = encontrar_match(
-    [ruru1, ruru2, ruru3, ruru4, ruru5, ruru6, ruru7, ruru8, ruru9, ruru10],
-    [yaku1, yaku2, yaku3, yaku4, yaku5, yaku6, yaku7, yaku8, yaku9, yaku10]
-)
+# Nuevos Yakus con horarios y opciones superpuestas
+yaku6 = Yaku("Yaku6", ["matemática", "ajedrez"],  # Mismo que Yaku1
+             convertir_horarios("Lunes 1300-1500, Jueves 1300-1500"),  # Horario similar
+             "Español", ["3ero Secundaria", "4to Secundaria"])
 
-for match in mejor_asignacion:
-    print(f"{match[0]} se empareja con {match[1]} en el curso/área de {match[2]} durante los horarios: {match[3]} con preferencia {match[4]}")
-print(f"Máximo de horas asignadas: {max_horas}")
+yaku7 = Yaku("Yaku7", ["dibujo", "pintura"],  # Mismo que Yaku4
+             convertir_horarios("Lunes 1000-1200, Miércoles 1400-1600"),  # Coincide con Ruru7
+             "Español", ["5to Primaria", "1ero Secundaria"])
+
+yaku8 = Yaku("Yaku8", ["música", "inglés"],  # Similar a Yaku3
+             convertir_horarios("Lunes 1400-1600, Sábado 1000-1200"),  # Coincide con Ruru5
+             "Español", ["2do Secundaria", "3ero Secundaria"])
+
+yaku9 = Yaku("Yaku9", ["comunicación", "oratoria"],  # Mismo que Yaku2
+             convertir_horarios("Miércoles 1500-1700, Viernes 1000-1200"),  # Coincide con Ruru4
+             "Español", ["1ero Secundaria", "2do Secundaria"])
+
+yaku10 = Yaku("Yaku10", ["matemática", "ajedrez"],  # Similar a Yaku1 y Yaku6
+              convertir_horarios("Martes 1000-1200, Jueves 1400-1600"),  # Coincide con Ruru3
+              "Español", ["3ero Secundaria", "4to Secundaria"])
+
+yaku11 = Yaku("Yaku11", ["música", "psicología"],  # Coincide con opciones de Ruru10
+              convertir_horarios("Lunes 1000-1200, Jueves 1400-1600"),
+              "Español", ["2do Secundaria", "3ero Secundaria"])
+
+yaku12 = Yaku("Yaku12", ["matemática", "inglés"],  # Coincide con opciones de Ruru8 y Ruru15
+              convertir_horarios("Martes 0900-1100, Jueves 1000-1200"),
+              "Español", ["5to Secundaria", "6to Primaria"])
+
+# Actualizar las listas
+rurus_lista = [ruru1, ruru2, ruru3, ruru4, ruru5, ruru6, ruru7, ruru8, ruru9, ruru10,
+               ruru11, ruru12, ruru13, ruru14, ruru15]
+yakus_lista = [yaku1, yaku2, yaku3, yaku4, yaku5, yaku6, yaku7, yaku8, yaku9, yaku10, yaku11, yaku12]
+
+matchmaker = MatchMaker()
+report_generator = ReportGenerator(matchmaker)
+
+mejor_asignacion, matches_secundarios, max_horas = matchmaker.encontrar_match(rurus_lista, yakus_lista)
+report_generator.generar_reporte(rurus_lista, yakus_lista, mejor_asignacion)
+
+print("Se ha generado el archivo 'reporte_matches.txt' con los resultados")
