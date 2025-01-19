@@ -34,9 +34,35 @@ Yaku5 (opciones: psicología, oratoria)
 Yaku11 (opciones: música, psicología)
 
 === RURUS SIN EMPAREJAR ===
-Ruru2 (opciones: dibujo, pintura)
-Ruru9 (opciones: comunicación, oratoria)
-Ruru11 (opciones: pintura, dibujo)
-Ruru12 (opciones: música, inglés)
-Ruru13 (opciones: matemática, ajedrez)
-Ruru14 (opciones: comunicación, oratoria)
+Ruru2:
+  Opciones: dibujo, pintura
+  Horarios disponibles:
+    - Lunes: 13:00 a 16:00
+    - Miércoles: 13:00 a 16:00
+
+Ruru9:
+  Opciones: comunicación, oratoria
+  Horarios disponibles:
+    - Miércoles: 10:00 a 12:00
+    - Viernes: 14:00 a 16:00
+
+Ruru11:
+  Opciones: pintura, dibujo
+  Horarios disponibles:
+    - Lunes: 08:00 a 09:00
+
+Ruru12:
+  Opciones: música, inglés
+  Horarios disponibles:
+    - Sábado: 15:00 a 17:00
+
+Ruru13:
+  Opciones: matemática, ajedrez
+  Horarios disponibles:
+    - Domingo: 09:00 a 10:00
+
+Ruru14:
+  Opciones: comunicación, oratoria
+  Horarios disponibles:
+    - Viernes: 20:00 a 22:00
+

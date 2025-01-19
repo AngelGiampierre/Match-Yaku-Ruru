@@ -21,6 +21,9 @@ class Yaku:
         self.grados = grados  # Lista de grados que puede enseñar
 
 class MatchMaker:
+    def __init__(self):
+        self._cache_intersecciones = {}
+    
     def es_idioma_compatible(self, idioma_ruru, idioma_yaku):
         """
         Ajusta esta función si necesitas más casos de compatibilidad
@@ -55,21 +58,46 @@ class MatchMaker:
         return round(total_horas, 1)
 
     def encontrar_interseccion(self, horarios_ruru, horarios_yaku):
+        # Crear una clave única para esta combinación de horarios
+        clave = (
+            tuple((d, tuple(h)) for d,h in sorted(horarios_ruru.items())),
+            tuple((d, tuple(h)) for d,h in sorted(horarios_yaku.items()))
+        )
+        
+        if clave not in self._cache_intersecciones:
+            self._cache_intersecciones[clave] = self._calcular_interseccion(horarios_ruru, horarios_yaku)
+        
+        return self._cache_intersecciones[clave]
+
+    def _calcular_interseccion(self, horarios_ruru, horarios_yaku):
         """
-        Retorna la intersección de horarios entre ruru y yaku, sin modificar nada.
+        Calcula la intersección de horarios entre un Ruru y un Yaku.
+        Retorna un diccionario con los rangos de tiempo que coinciden.
         """
         interseccion = {}
-        for dia, rangos_r in horarios_ruru.items():
-            if dia in horarios_yaku:
-                rangos_y = horarios_yaku[dia]
-                for (i_ruru, f_ruru) in rangos_r:
-                    for (i_yaku, f_yaku) in rangos_y:
-                        inicio = max(i_ruru, i_yaku)
-                        fin = min(f_ruru, f_yaku)
-                        if inicio < fin:
-                            if dia not in interseccion:
-                                interseccion[dia] = []
-                            interseccion[dia].append((inicio, fin))
+        
+        # Iterar sobre los días que aparecen en ambos horarios
+        dias_comunes = set(horarios_ruru.keys()) & set(horarios_yaku.keys())
+        
+        for dia in dias_comunes:
+            rangos_ruru = horarios_ruru[dia]
+            rangos_yaku = horarios_yaku[dia]
+            
+            # Encontrar intersecciones para cada combinación de rangos
+            rangos_interseccion = []
+            for (inicio_r, fin_r) in rangos_ruru:
+                for (inicio_y, fin_y) in rangos_yaku:
+                    # Calcular el rango de intersección
+                    inicio = max(inicio_r, inicio_y)
+                    fin = min(fin_r, fin_y)
+                    
+                    if inicio < fin:  # Si hay intersección
+                        rangos_interseccion.append((inicio, fin))
+            
+            # Si encontramos intersecciones para este día, las guardamos
+            if rangos_interseccion:
+                interseccion[dia] = rangos_interseccion
+        
         return interseccion
 
     def encontrar_match(self, rurus, yakus):
@@ -229,6 +257,14 @@ class ReportGenerator:
         # Buscar matches secundarios
         matches_secundarios = self.encontrar_match_secundario(rurus_sin_match, yakus_sin_match)
         
+        # Añadir estadísticas y métricas
+        stats = {
+            'total_matches': len(mejor_asignacion),
+            'promedio_horas': sum(self.matchmaker.calcular_horas_asignadas(m[3]) for m in mejor_asignacion) / len(mejor_asignacion),
+            'rurus_sin_match': len(rurus_sin_match),
+            'yakus_sin_match': len(yakus_sin_match)
+        }
+        
         # Generar el reporte
         self._escribir_reporte(mejor_asignacion, matches_secundarios, yakus_sin_match, rurus_sin_match)
 
@@ -275,7 +311,16 @@ class ReportGenerator:
                 
             f.write("\n=== RURUS SIN EMPAREJAR ===\n")
             for ruru in rurus_sin_match:
-                f.write(f"{ruru.nombre} (opciones: {', '.join(ruru.opciones)})\n")
+                f.write(f"{ruru.nombre}:\n")
+                f.write(f"  Opciones: {', '.join(ruru.opciones)}\n")
+                f.write(f"  Horarios disponibles:\n")
+                for dia, rangos in sorted(ruru.disponibilidad.items()):
+                    for inicio, fin in rangos:
+                        # Formatear hora de 24h a formato más legible
+                        hora_inicio = f"{inicio//100:02d}:{inicio%100:02d}"
+                        hora_fin = f"{fin//100:02d}:{fin%100:02d}"
+                        f.write(f"    - {dia.capitalize()}: {hora_inicio} a {hora_fin}\n")
+                f.write("\n")
 
     def encontrar_match_secundario(self, rurus_sin_match, yakus_sin_match):
         """
@@ -316,6 +361,13 @@ class ReportGenerator:
             self.matchmaker.es_idioma_compatible(ruru.idioma, yaku.idioma) and
             ruru.grado in yaku.grados
         )
+
+    def _formato_horario(self, horarios):
+        """Convierte horarios del formato 24h a un formato más legible"""
+        return {dia: [(f"{inicio//100:02d}:{inicio%100:02d}", 
+                      f"{fin//100:02d}:{fin%100:02d}") 
+                for inicio, fin in slots] 
+                for dia, slots in horarios.items()}
 
 # Función auxiliar para convertir horarios
 def convertir_horarios(form_data):
