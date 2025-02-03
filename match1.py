@@ -1,4 +1,9 @@
 from itertools import product
+from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+import pandas as pd
 
 # Siguientes pasos:
 # - Uniformizar formularios de inscripción de yakus y rurus
@@ -516,3 +521,119 @@ mejor_asignacion, matches_secundarios, max_horas = matchmaker.encontrar_match(ru
 report_generator.generar_reporte(rurus_lista, yakus_lista, mejor_asignacion)
 
 print("Se ha generado el archivo 'reporte_matches.txt' con los resultados")
+
+class GoogleSheetReader:
+    def __init__(self, credentials_path, spreadsheet_id):
+        self.credentials_path = credentials_path
+        self.spreadsheet_id = spreadsheet_id
+        self.scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+        self.service = self._get_service()
+
+    def _get_service(self):
+        """Configura y retorna el servicio de Google Sheets."""
+        try:
+            credentials = service_account.Credentials.from_service_account_file(
+                self.credentials_path, scopes=self.scopes
+            )
+            return build('sheets', 'v4', credentials=credentials)
+        except Exception as e:
+            print(f"Error al configurar el servicio: {e}")
+            return None
+
+    def leer_datos(self, rango):
+        """Lee datos de un rango específico de la hoja."""
+        try:
+            result = self.service.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=rango
+            ).execute()
+            
+            valores = result.get('values', [])
+            if not valores:
+                print('No se encontraron datos.')
+                return None
+                
+            return valores
+        except HttpError as error:
+            print(f"Error al leer datos: {error}")
+            return None
+
+    def obtener_rurus(self, rango_rurus):
+        """Convierte los datos de la hoja en objetos Ruru."""
+        datos = self.leer_datos(rango_rurus)
+        if not datos:
+            return []
+
+        rurus = []
+        # Asumiendo que las columnas están en este orden:
+        # Nombre | Opciones | Disponibilidad | Idioma | Grado
+        for fila in datos[1:]:  # Saltamos la cabecera
+            try:
+                nombre = fila[0]
+                opciones = [op.strip() for op in fila[1].split(',')]
+                disponibilidad = convertir_horarios(fila[2])
+                idioma = fila[3]
+                grado = fila[4]
+                
+                ruru = Ruru(nombre, opciones, disponibilidad, idioma, grado)
+                rurus.append(ruru)
+            except Exception as e:
+                print(f"Error al procesar Ruru {fila[0]}: {e}")
+                continue
+                
+        return rurus
+
+    def obtener_yakus(self, rango_yakus):
+        """Convierte los datos de la hoja en objetos Yaku."""
+        datos = self.leer_datos(rango_yakus)
+        if not datos:
+            return []
+
+        yakus = []
+        # Asumiendo que las columnas están en este orden:
+        # Nombre | Opciones | Disponibilidad | Idioma | Grados
+        for fila in datos[1:]:  # Saltamos la cabecera
+            try:
+                nombre = fila[0]
+                opciones = [op.strip() for op in fila[1].split(',')]
+                disponibilidad = convertir_horarios(fila[2])
+                idioma = fila[3]
+                grados = [g.strip() for g in fila[4].split(',')]
+                
+                yaku = Yaku(nombre, opciones, disponibilidad, idioma, grados)
+                yakus.append(yaku)
+            except Exception as e:
+                print(f"Error al procesar Yaku {fila[0]}: {e}")
+                continue
+                
+        return yakus
+
+# Modificar la parte final del script para usar los datos de Google Sheets
+if __name__ == "__main__":
+    # Configuración de Google Sheets
+    CREDENTIALS_PATH = 'ruta/a/tu/archivo/credentials.json'
+    SPREADSHEET_ID = 'tu_spreadsheet_id'
+    
+    # Rangos de las hojas (ajusta según tu estructura)
+    RANGO_RURUS = 'Rurus!A2:E50'  # A2:E50 asume que tienes hasta 50 filas de datos
+    RANGO_YAKUS = 'Yakus!A2:E50'
+    
+    try:
+        # Inicializar el lector de Google Sheets
+        sheet_reader = GoogleSheetReader(CREDENTIALS_PATH, SPREADSHEET_ID)
+        
+        # Obtener datos de la hoja
+        rurus_lista = sheet_reader.obtener_rurus(RANGO_RURUS)
+        yakus_lista = sheet_reader.obtener_yakus(RANGO_YAKUS)
+        
+        # Usar los datos obtenidos
+        matchmaker = MatchMaker()
+        report_generator = ReportGenerator(matchmaker)
+        
+        mejor_asignacion, matches_secundarios, max_horas = matchmaker.encontrar_match(rurus_lista, yakus_lista)
+        report_generator.generar_reporte(rurus_lista, yakus_lista, mejor_asignacion)
+        
+        print("Se ha generado el archivo 'reporte_matches.txt' con los resultados")
+        
+    except Exception as e:
+        print(f"Error en la ejecución: {e}")
