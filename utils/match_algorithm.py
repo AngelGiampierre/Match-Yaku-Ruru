@@ -5,48 +5,66 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import pandas as pd
 
+# Actualización de la estructura de datos:
+# - Yakus: Se agregaron campos de información personal (nombre, DNI, celular, correo)
+# - Yakus: Nuevo campo "area" con tres opciones: "Arte & Cultura", "Bienestar Psicológico", "Asesoría a Colegios Nacionales"
+# - Yakus: Opciones específicas por área
+# - Yakus: Nuevo campo "num_beneficiarios"  
+# - Yakus: Cambio en el manejo de horarios, ahora por períodos (Mañana, Tarde, Noche)
+# - Yakus: Nuevo campo "nivel_quechua" reemplazando el campo "idioma"
+# - Yakus: Grados ahora con valores fijos: "Primaria (3° y 4° grado)", "Primaria (5° y 6° grado)", "Secundaria (1°, 2° y 3° grado)"
+# - Rurus: Adaptados para mantener compatibilidad con la nueva estructura
+
 # Siguientes pasos:
 # - Uniformizar formularios de inscripción de yakus y rurus
 # - Conectar formularios con el algoritmo
 
 class Ruru:
-    def __init__(self, nombre, opciones, disponibilidad, idioma, grado):
+    def __init__(self, nombre, opciones, disponibilidad, idioma, grado, area=None):
         self.nombre = nombre
         self.opciones = opciones  # Lista de opciones en orden de preferencia
         self.disponibilidad = disponibilidad  # Diccionario con horarios por día
         self.idioma = idioma
         self.grado = grado  # Grado escolar del Ruru
+        # Nuevo campo área para mantener compatibilidad con los Yakus
+        self.area = area if area else "Estudiante"  # Por defecto es estudiante
 
 class Yaku:
-    def __init__(self, nombre, opciones, disponibilidad, idioma, grados):
+    def __init__(self, nombre, dni, celular, correo, area, opciones, num_beneficiarios, disponibilidad, nivel_quechua, grados):
         self.nombre = nombre
-        self.opciones = opciones  # Lista de opciones en orden de preferencia
+        self.dni = dni
+        self.celular = celular
+        self.correo = correo
+        self.area = area  # "Arte & Cultura", "Bienestar Psicológico", o "Asesoría a Colegios Nacionales"
+        self.opciones = opciones  # Lista de opciones según el área
+        self.num_beneficiarios = num_beneficiarios  # Número de beneficiarios a atender
         self.disponibilidad = disponibilidad  # Diccionario con horarios por día
-        self.idioma = idioma
+        self.nivel_quechua = nivel_quechua  # Nivel de idioma quechua
         self.grados = grados  # Lista de grados que puede enseñar
 
 class MatchMaker:
     def __init__(self):
         self._cache_intersecciones = {}
     
-    def es_idioma_compatible(self, idioma_ruru, idioma_yaku):
+    def es_idioma_compatible(self, idioma_ruru, nivel_quechua_yaku):
         """
-        Ajusta esta función si necesitas más casos de compatibilidad
+        Verifica si el nivel de quechua del Yaku es compatible con el idioma del Ruru.
+        Un Ruru con "Español y Quechua" necesita un Yaku con al menos nivel básico de quechua.
         """
-        if idioma_ruru == idioma_yaku:
-            return True
-        # Ejemplo adicional: "Español y Quechua" compatible con "Español"
-        if idioma_ruru == "Español y Quechua" and idioma_yaku == "Español":
+        if idioma_ruru == "Español":
+            return True  # Un Ruru que habla español es compatible con cualquier Yaku
+        # Para un Ruru que habla "Español y Quechua", el Yaku necesita algún nivel de quechua
+        if idioma_ruru == "Español y Quechua" and nivel_quechua_yaku != "No lo hablo":
             return True
         return False
 
     def _es_match_valido(self, ruru, yaku):
         """
-        Verifica si hay al menos una opción en común, idioma compatible y grado válido.
+        Verifica si hay al menos una opción en común, nivel de quechua compatible y grado válido.
         """
         return (
             any(opcion in yaku.opciones for opcion in ruru.opciones) and
-            self.es_idioma_compatible(ruru.idioma, yaku.idioma) and
+            self.es_idioma_compatible(ruru.idioma, yaku.nivel_quechua) and
             ruru.grado in yaku.grados
         )
 
@@ -201,7 +219,7 @@ class MatchMaker:
         for yaku in yakus:
             print(f"\nAnalizando compatibilidad con {yaku.nombre}:")
             print(f"Área: {yaku.area} - {'✓' if yaku.area == ruru.area else '✗'}")
-            print(f"Idioma compatible: {'✓' if MatchMaker.es_idioma_compatible(ruru.idioma, yaku.idioma) else '✗'}")
+            print(f"Nivel quechua: {yaku.nivel_quechua} - {'✓' if self.es_idioma_compatible(ruru.idioma, yaku.nivel_quechua) else '✗'}")
             print(f"Grado compatible: {'✓' if ruru.grado in yaku.grados else '✗'}")
             
             # Verificar horarios disponibles
@@ -359,11 +377,11 @@ class ReportGenerator:
 
     def _es_match_secundario_valido(self, ruru, yaku):
         """
-        Verifica si hay al menos una opción en común, idioma compatible y grado válido.
+        Verifica si hay al menos una opción en común, nivel de quechua compatible y grado válido.
         """
         return (
             any(opcion in yaku.opciones for opcion in ruru.opciones) and
-            self.matchmaker.es_idioma_compatible(ruru.idioma, yaku.idioma) and
+            self.matchmaker.es_idioma_compatible(ruru.idioma, yaku.nivel_quechua) and
             ruru.grado in yaku.grados
         )
 
@@ -385,129 +403,254 @@ def convertir_horarios(form_data):
         "Sábado": "sábado",
         "Domingo": "domingo"
     }
+    
+    # Definir horarios estándar
+    rangos_horarios = {
+        "Mañana": (800, 1200),  # 8am a 12m
+        "Tarde": (1400, 1800),  # 2pm a 6pm
+        "Noche": (1800, 2200)   # 6pm a 10pm
+    }
+    
     horarios = {}
     for entrada in form_data.split(','):
-        dia, horas = entrada.strip().split(' ')
-        inicio, fin = map(lambda x: int(x.replace(':', '')), horas.split('-'))
+        partes = entrada.strip().split(' ')
+        dia = partes[0]
+        periodo = partes[1]
+        
+        # Convertir nombre del día a formato estándar
         dia = dias_map[dia]
+        
+        # Obtener el rango horario correspondiente
+        inicio, fin = rangos_horarios[periodo]
+        
         if dia not in horarios:
             horarios[dia] = []
         horarios[dia].append((inicio, fin))
+    
     return horarios
 
-# Ejemplos de Rurus y Yakus con las opciones permitidas:
-# matemática, comunicación, inglés, dibujo, pintura, ajedrez, música, oratoria, psicología
+# Ejemplos de Rurus con las opciones permitidas ahora ajustadas a las opciones disponibles para Yakus:
+# Para Arte & Cultura: Cuenta cuentos, Dibujo y Pintura, Música, Oratoria, Teatro, Danza
+# Para Asesoría a Colegios Nacionales: Comunicación, Inglés, Matemática
 
-ruru1 = Ruru("Ruru1", ["ajedrez", "música"], 
-             convertir_horarios("Lunes 1400-1600, Jueves 1300-1800"), 
-             "Español", "5to Primaria")
+ruru1 = Ruru("Ruru1", ["Música", "Matemática"], 
+             convertir_horarios("Lunes Tarde, Jueves Tarde"), 
+             "Español", "Primaria (5° y 6° grado)")
 
-ruru2 = Ruru("Ruru2", ["dibujo", "pintura"], 
-             convertir_horarios("Lunes 1300-1600, Miércoles 1300-1600"), 
-             "Español y Quechua", "3ero Secundaria")
+ruru2 = Ruru("Ruru2", ["Dibujo y Pintura", "Danza"], 
+             convertir_horarios("Lunes Tarde, Miércoles Tarde"), 
+             "Español y Quechua", "Secundaria (1°, 2° y 3° grado)")
 
-ruru3 = Ruru("Ruru3", ["matemática", "ajedrez"], 
-             convertir_horarios("Martes 1000-1200, Jueves 1400-1600"), 
-             "Español", "4to Secundaria")
+ruru3 = Ruru("Ruru3", ["Matemática", "Inglés"], 
+             convertir_horarios("Martes Mañana, Jueves Tarde"), 
+             "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru4 = Ruru("Ruru4", ["comunicación", "oratoria"], 
-             convertir_horarios("Miércoles 1500-1700, Viernes 1000-1200"), 
-             "Español", "1ero Secundaria")
+ruru4 = Ruru("Ruru4", ["Comunicación", "Oratoria"], 
+             convertir_horarios("Miércoles Tarde, Viernes Mañana"), 
+             "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru5 = Ruru("Ruru5", ["música", "inglés"], 
-             convertir_horarios("Lunes 1400-1600, Sábado 1000-1200"), 
-             "Español", "2do Secundaria")
+ruru5 = Ruru("Ruru5", ["Música", "Inglés"], 
+             convertir_horarios("Lunes Tarde, Sábado Mañana"), 
+             "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru6 = Ruru("Ruru6", ["matemática", "ajedrez"], 
-             convertir_horarios("Martes 1300-1500, Jueves 1300-1500"), 
-             "Español", "3ero Secundaria")
+ruru6 = Ruru("Ruru6", ["Matemática", "Teatro"], 
+             convertir_horarios("Martes Tarde, Jueves Tarde"), 
+             "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru7 = Ruru("Ruru7", ["pintura", "dibujo"], 
-             convertir_horarios("Lunes 1000-1200, Miércoles 1400-1600"), 
-             "Español y Quechua", "5to Primaria")
+ruru7 = Ruru("Ruru7", ["Dibujo y Pintura", "Danza"], 
+             convertir_horarios("Lunes Mañana, Miércoles Tarde"), 
+             "Español y Quechua", "Primaria (5° y 6° grado)")
 
-ruru8 = Ruru("Ruru8", ["matemática", "inglés"], 
-             convertir_horarios("Martes 1000-1200, Jueves 1000-1200"), 
-             "Español", "6to Primaria")
+ruru8 = Ruru("Ruru8", ["Matemática", "Inglés"], 
+             convertir_horarios("Martes Mañana, Jueves Mañana"), 
+             "Español", "Primaria (5° y 6° grado)")
 
-ruru9 = Ruru("Ruru9", ["comunicación", "oratoria"], 
-             convertir_horarios("Miércoles 1000-1200, Viernes 1400-1600"), 
-             "Español", "4to Secundaria")
+ruru9 = Ruru("Ruru9", ["Comunicación", "Oratoria"], 
+             convertir_horarios("Miércoles Mañana, Viernes Tarde"), 
+             "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru10 = Ruru("Ruru10", ["música", "psicología"], 
-              convertir_horarios("Lunes 1000-1200, Domingo 1400-1600"), 
-              "Español", "3ero Secundaria")
+ruru10 = Ruru("Ruru10", ["Música", "Facilitador psicoeducativo"], 
+              convertir_horarios("Lunes Mañana, Domingo Tarde"), 
+              "Español", "Secundaria (1°, 2° y 3° grado)")
 
 # Rurus con horarios específicos
-ruru11 = Ruru("Ruru11", ["pintura", "dibujo"], 
-              convertir_horarios("Lunes 0800-0900"), # Solo 1 hora disponible
-              "Español", "1ero Secundaria")
+ruru11 = Ruru("Ruru11", ["Dibujo y Pintura", "Teatro"], 
+              convertir_horarios("Lunes Mañana"), # Solo un periodo disponible
+              "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru12 = Ruru("Ruru12", ["música", "inglés"], 
-              convertir_horarios("Sábado 1500-1700"), # Horario poco común
-              "Español", "2do Secundaria")
+ruru12 = Ruru("Ruru12", ["Música", "Inglés"], 
+              convertir_horarios("Sábado Tarde"), # Horario poco común
+              "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru13 = Ruru("Ruru13", ["matemática", "ajedrez"], 
-              convertir_horarios("Domingo 0900-1000"), # Solo domingo
-              "Español y Quechua", "3ero Secundaria")
+ruru13 = Ruru("Ruru13", ["Matemática", "Cuenta cuentos"], 
+              convertir_horarios("Domingo Mañana"), # Solo domingo
+              "Español y Quechua", "Secundaria (1°, 2° y 3° grado)")
 
-ruru14 = Ruru("Ruru14", ["comunicación", "oratoria"], 
-              convertir_horarios("Viernes 2000-2200"), # Horario nocturno
-              "Español", "4to Secundaria")
+ruru14 = Ruru("Ruru14", ["Comunicación", "Oratoria"], 
+              convertir_horarios("Viernes Noche"), # Horario nocturno
+              "Español", "Secundaria (1°, 2° y 3° grado)")
 
-ruru15 = Ruru("Ruru15", ["matemática", "inglés"], 
-              convertir_horarios("Martes 0900-1100, Jueves 1500-1700"), 
-              "Español", "5to Secundaria")
+ruru15 = Ruru("Ruru15", ["Matemática", "Inglés"], 
+              convertir_horarios("Martes Mañana, Jueves Tarde"), 
+              "Español", "Secundaria (1°, 2° y 3° grado)")
 
-# Yakus con sus opciones
-yaku1 = Yaku("Yaku1", ["matemática", "ajedrez"], 
-             convertir_horarios("Lunes 1300-1500, Jueves 1200-1400"), 
-             "Español", ["5to Primaria", "4to Secundaria", "5to Secundaria"])
+# Yakus con sus opciones según el nuevo formato
+yaku1 = Yaku(
+    "Yaku1", 
+    "12345678", 
+    "999888777", 
+    "yaku1@mail.com",
+    "Asesoría a Colegios Nacionales", 
+    ["Matemática", "Inglés"], 
+    3,
+    convertir_horarios("Lunes Mañana, Jueves Tarde"), 
+    "Nivel básico",
+    ["Primaria (5° y 6° grado)", "Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku2 = Yaku("Yaku2", ["comunicación", "oratoria"], 
-             convertir_horarios("Martes 1400-1600, Jueves 1400-1600"), 
-             "Español", ["1ero Secundaria", "2do Secundaria"])
+yaku2 = Yaku(
+    "Yaku2", 
+    "87654321", 
+    "999777666", 
+    "yaku2@mail.com",
+    "Asesoría a Colegios Nacionales", 
+    ["Comunicación"], 
+    2,
+    convertir_horarios("Martes Tarde, Jueves Tarde"), 
+    "No lo hablo",
+    ["Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku3 = Yaku("Yaku3", ["inglés", "música"], 
-             convertir_horarios("Lunes 1000-1200, Miércoles 1000-1200"), 
-             "Español", ["2do Secundaria", "3ero Secundaria"])
+yaku3 = Yaku(
+    "Yaku3", 
+    "23456789", 
+    "999666555", 
+    "yaku3@mail.com",
+    "Arte & Cultura", 
+    ["Música"], 
+    4,
+    convertir_horarios("Lunes Mañana, Miércoles Mañana"), 
+    "Nivel intermedio",
+    ["Primaria (3° y 4° grado)", "Primaria (5° y 6° grado)", "Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku4 = Yaku("Yaku4", ["dibujo", "pintura"], 
-             convertir_horarios("Martes 1500-1700, Viernes 1500-1700"), 
-             "Español", ["5to Primaria", "6to Primaria"])
+yaku4 = Yaku(
+    "Yaku4", 
+    "34567890", 
+    "999555444", 
+    "yaku4@mail.com",
+    "Arte & Cultura", 
+    ["Dibujo y Pintura"], 
+    5,
+    convertir_horarios("Martes Tarde, Viernes Tarde"), 
+    "No lo hablo",
+    ["Primaria (3° y 4° grado)", "Primaria (5° y 6° grado)"]
+)
 
-yaku5 = Yaku("Yaku5", ["psicología", "oratoria"], 
-             convertir_horarios("Lunes 1400-1600, Jueves 1400-1600"), 
-             "Español", ["3ero Secundaria", "4to Secundaria"])
+yaku5 = Yaku(
+    "Yaku5", 
+    "45678901", 
+    "999444333", 
+    "yaku5@mail.com",
+    "Bienestar Psicológico", 
+    ["Facilitador psicoeducativo"], 
+    6,
+    convertir_horarios("Lunes Tarde, Jueves Tarde"), 
+    "Nivel avanzado",
+    ["Secundaria (1°, 2° y 3° grado)"]
+)
 
-# Nuevos Yakus con horarios y opciones superpuestas
-yaku6 = Yaku("Yaku6", ["matemática", "ajedrez"],  # Mismo que Yaku1
-             convertir_horarios("Lunes 1300-1500, Jueves 1300-1500"),  # Horario similar
-             "Español", ["3ero Secundaria", "4to Secundaria"])
+# Más ejemplos de Yakus
+yaku6 = Yaku(
+    "Yaku6", 
+    "56789012", 
+    "999333222", 
+    "yaku6@mail.com",
+    "Asesoría a Colegios Nacionales", 
+    ["Matemática", "Comunicación", "Inglés"], 
+    4,
+    convertir_horarios("Lunes Tarde, Jueves Tarde"), 
+    "No lo hablo",
+    ["Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku7 = Yaku("Yaku7", ["dibujo", "pintura"],  # Mismo que Yaku4
-             convertir_horarios("Lunes 1000-1200, Miércoles 1400-1600"),  # Coincide con Ruru7
-             "Español", ["5to Primaria", "1ero Secundaria"])
+yaku7 = Yaku(
+    "Yaku7", 
+    "67890123", 
+    "999222111", 
+    "yaku7@mail.com",
+    "Arte & Cultura", 
+    ["Dibujo y Pintura"], 
+    3,
+    convertir_horarios("Lunes Mañana, Miércoles Tarde"), 
+    "Nativo",
+    ["Primaria (3° y 4° grado)", "Primaria (5° y 6° grado)"]
+)
 
-yaku8 = Yaku("Yaku8", ["música", "inglés"],  # Similar a Yaku3
-             convertir_horarios("Lunes 1400-1600, Sábado 1000-1200"),  # Coincide con Ruru5
-             "Español", ["2do Secundaria", "3ero Secundaria"])
+yaku8 = Yaku(
+    "Yaku8", 
+    "78901234", 
+    "999111000", 
+    "yaku8@mail.com",
+    "Arte & Cultura", 
+    ["Música"], 
+    5,
+    convertir_horarios("Lunes Tarde, Sábado Mañana"), 
+    "Nivel básico",
+    ["Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku9 = Yaku("Yaku9", ["comunicación", "oratoria"],  # Mismo que Yaku2
-             convertir_horarios("Miércoles 1500-1700, Viernes 1000-1200"),  # Coincide con Ruru4
-             "Español", ["1ero Secundaria", "2do Secundaria"])
+yaku9 = Yaku(
+    "Yaku9", 
+    "89012345", 
+    "999000999", 
+    "yaku9@mail.com",
+    "Asesoría a Colegios Nacionales", 
+    ["Comunicación"], 
+    2,
+    convertir_horarios("Miércoles Tarde, Viernes Mañana"), 
+    "No lo hablo",
+    ["Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku10 = Yaku("Yaku10", ["matemática", "ajedrez"],  # Similar a Yaku1 y Yaku6
-              convertir_horarios("Martes 1000-1200, Jueves 1400-1600"),  # Coincide con Ruru3
-              "Español", ["3ero Secundaria", "4to Secundaria"])
+yaku10 = Yaku(
+    "Yaku10", 
+    "90123456", 
+    "999999888", 
+    "yaku10@mail.com",
+    "Asesoría a Colegios Nacionales", 
+    ["Matemática"], 
+    3,
+    convertir_horarios("Martes Mañana, Jueves Tarde"), 
+    "Nivel básico",
+    ["Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku11 = Yaku("Yaku11", ["música", "psicología"],  # Coincide con opciones de Ruru10
-              convertir_horarios("Lunes 1000-1200, Jueves 1400-1600"),
-              "Español", ["2do Secundaria", "3ero Secundaria"])
+yaku11 = Yaku(
+    "Yaku11", 
+    "01234567", 
+    "999888777", 
+    "yaku11@mail.com",
+    "Bienestar Psicológico", 
+    ["Facilitador psicoeducativo"], 
+    4,
+    convertir_horarios("Lunes Mañana, Jueves Tarde"), 
+    "Nivel intermedio",
+    ["Primaria (5° y 6° grado)", "Secundaria (1°, 2° y 3° grado)"]
+)
 
-yaku12 = Yaku("Yaku12", ["matemática", "inglés"],  # Coincide con opciones de Ruru8 y Ruru15
-              convertir_horarios("Martes 0900-1100, Jueves 1000-1200"),
-              "Español", ["5to Secundaria", "6to Primaria"])
+yaku12 = Yaku(
+    "Yaku12", 
+    "12345670", 
+    "999777666", 
+    "yaku12@mail.com",
+    "Asesoría a Colegios Nacionales", 
+    ["Matemática", "Inglés"], 
+    5,
+    convertir_horarios("Martes Mañana, Jueves Mañana"), 
+    "No lo hablo",
+    ["Primaria (5° y 6° grado)"]
+)
 
 # Actualizar las listas
 rurus_lista = [ruru1, ruru2, ruru3, ruru4, ruru5, ruru6, ruru7, ruru8, ruru9, ruru10,
@@ -571,9 +714,29 @@ class GoogleSheetReader:
             try:
                 nombre = fila[0]
                 opciones = [op.strip() for op in fila[1].split(',')]
-                disponibilidad = convertir_horarios(fila[2])
-                idioma = fila[3]
-                grado = fila[4]
+                
+                # Procesar disponibilidad - asumimos formato similar a Yakus
+                disponibilidad_raw = []
+                if len(fila) > 2:
+                    # Si está en formato antiguo (texto con formato "Lunes 1400-1600")
+                    if ',' in fila[2]:
+                        disponibilidad = convertir_horarios(fila[2])
+                    else:
+                        # Formato nuevo con columnas por día
+                        for i in range(7):  # Columnas de disponibilidad (Lun-Dom)
+                            if i + 2 < len(fila) and fila[i + 2].strip():
+                                dia = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][i]
+                                periodos = fila[i + 2].strip().split(',')
+                                for periodo in periodos:
+                                    if periodo.strip() in ["Mañana", "Tarde", "Noche"]:
+                                        disponibilidad_raw.append(f"{dia} {periodo.strip()}")
+                
+                    disponibilidad = convertir_horarios(','.join(disponibilidad_raw))
+                else:
+                    disponibilidad = {}
+                
+                idioma = fila[9] if len(fila) > 9 else "Español"
+                grado = fila[10] if len(fila) > 10 else "1ero Secundaria"
                 
                 ruru = Ruru(nombre, opciones, disponibilidad, idioma, grado)
                 rurus.append(ruru)
@@ -590,17 +753,53 @@ class GoogleSheetReader:
             return []
 
         yakus = []
-        # Asumiendo que las columnas están en este orden:
-        # Nombre | Opciones | Disponibilidad | Idioma | Grados
+        # Las columnas en orden:
+        # Nombre | DNI | Celular | Correo | Área | Opciones | N° Beneficiarios | 
+        # Disponibilidad (Lun-Dom) | Nivel Quechua | Grados
         for fila in datos[1:]:  # Saltamos la cabecera
             try:
-                nombre = fila[0]
-                opciones = [op.strip() for op in fila[1].split(',')]
-                disponibilidad = convertir_horarios(fila[2])
-                idioma = fila[3]
-                grados = [g.strip() for g in fila[4].split(',')]
+                if len(fila) < 10:
+                    print(f"Fila incompleta: {fila}")
+                    continue
                 
-                yaku = Yaku(nombre, opciones, disponibilidad, idioma, grados)
+                nombre = fila[0]
+                dni = fila[1]
+                celular = fila[2]
+                correo = fila[3]
+                area = fila[4]
+                opciones = [op.strip() for op in fila[5].split(',')]
+                num_beneficiarios = int(fila[6])
+                
+                # Procesar disponibilidad
+                disponibilidad_raw = []
+                for i in range(7):  # Columnas de disponibilidad (Lun-Dom)
+                    if i + 7 < len(fila) and fila[i + 7].strip():
+                        dia = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][i]
+                        periodos = fila[i + 7].strip().split(',')
+                        for periodo in periodos:
+                            if periodo.strip() in ["Mañana", "Tarde", "Noche"]:
+                                disponibilidad_raw.append(f"{dia} {periodo.strip()}")
+                
+                disponibilidad = convertir_horarios(','.join(disponibilidad_raw))
+                
+                nivel_quechua = fila[14] if len(fila) > 14 else "No lo hablo"
+                
+                # Procesar grados
+                grados_raw = fila[15] if len(fila) > 15 else ""
+                grados = [g.strip() for g in grados_raw.split(',')] if grados_raw else []
+                
+                yaku = Yaku(
+                    nombre, 
+                    dni, 
+                    celular, 
+                    correo, 
+                    area, 
+                    opciones, 
+                    num_beneficiarios, 
+                    disponibilidad, 
+                    nivel_quechua, 
+                    grados
+                )
                 yakus.append(yaku)
             except Exception as e:
                 print(f"Error al procesar Yaku {fila[0]}: {e}")

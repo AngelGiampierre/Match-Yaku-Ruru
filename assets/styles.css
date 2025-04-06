@@ -1,0 +1,88 @@
+/* Estilos para Match Yaku Ruru */
+
+/* Encabezados */
+.main-header {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    color: #1E3A8A;
+}
+
+.section-header {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: #2563EB;
+}
+
+.subsection-header {
+    font-size: 1.3rem;
+    font-weight: 500;
+    margin-top: 1.5rem;
+    margin-bottom: 0.8rem;
+    color: #3B82F6;
+}
+
+/* Contenedores */
+.highlight {
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    background-color: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    margin-bottom: 1.5rem;
+}
+
+/* Textos */
+.info-text {
+    color: #E5E7EB;
+    font-size: 1rem;
+    font-weight: 400;
+}
+
+.small-text {
+    font-size: 0.8rem;
+    color: #D1D5DB;
+}
+
+/* Dashboard específico */
+.dashboard-card {
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer;
+    height: 100%;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1E3A8A;
+}
+
+.card-description {
+    color: #4B5563;
+    font-size: 0.9rem;
+}
+
+/* Estilos para la navegación lateral */
+.sidebar-nav {
+    margin-top: 2rem;
+}
+
+.sidebar-nav a {
+    text-decoration: none;
+    color: inherit;
+} 
