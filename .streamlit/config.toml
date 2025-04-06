@@ -1,0 +1,26 @@
+[server]
+# Ocultar mensajes de servidor al iniciar
+headless = true
+enableCORS = false
+
+# Configuración de temas
+[theme]
+primaryColor = "#3B82F6"
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1E293B"  # Color para la barra lateral
+textColor = "#F8FAFC"
+font = "sans serif"
+
+# Configuración de la interfaz
+[browser]
+gatherUsageStats = false
+
+[ui]
+# Permitir que la barra lateral se colapse
+hideSidebarNav = false
+
+# Activar el modo ancho por defecto
+wideMode = true
+
+# Ocultar el selector de tema para mantener consistencia visual
+showSidebarConfigButton = false 
