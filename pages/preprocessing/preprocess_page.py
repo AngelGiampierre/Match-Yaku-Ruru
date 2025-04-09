@@ -355,29 +355,31 @@ def selection_by_area_tab():
     """Tab para selección de yakus por área"""
     st.header("Selección de Yakus por Área")
     
-    # Verificar si hay datos procesados
-    if st.session_state.processed_data is None:
-        st.warning("⚠️ Primero debes cargar y procesar los datos en la pestaña anterior")
-        return
+    # Nueva sección para seleccionar la fuente de datos
+    st.subheader("Fuente de Datos")
     
-    # Datos procesados
-    df = st.session_state.processed_data
+    # Variable para controlar si tenemos datos válidos para trabajar
+    datos_validos = False
+    df = None
     
-    # Nueva sección para destacar las dos opciones de importación
-    st.subheader("Importación de Datos")
+    # Determinar la fuente de datos
+    if st.session_state.processed_data is not None:
+        # Si hay datos de la sesión actual, ofrecer usarlos como opción
+        usar_datos_sesion = st.checkbox(
+            "Usar datos procesados del paso anterior", 
+            value=True,
+            key="usar_datos_sesion"
+        )
+        
+        if usar_datos_sesion:
+            df = st.session_state.processed_data
+            datos_validos = True
+            st.success("✅ Usando datos procesados del paso anterior")
+            st.info(f"📊 Registros: {len(df)} | Columnas: {len(df.columns)}")
     
-    import_option = st.radio(
-        "Selecciona una opción:",
-        options=[
-            "Usar los datos procesados del paso anterior",
-            "Importar archivo de datos procesados (exportado del Paso 1)",
-            "Cargar solo archivo con DNIs seleccionados"
-        ],
-        index=0
-    )
-    
-    # Cargar datos según la opción seleccionada
-    if import_option == "Importar archivo de datos procesados (exportado del Paso 1)":
+    # Siempre ofrecer la opción de cargar archivo de datos
+    if df is None or not usar_datos_sesion:
+        st.subheader("Cargar Datos Procesados")
         uploaded_processed = st.file_uploader(
             "Selecciona el archivo Excel/CSV con los datos procesados", 
             type=["xlsx", "csv"],
@@ -396,6 +398,7 @@ def selection_by_area_tab():
                 for col in df.select_dtypes(include=['object']).columns:
                     df[col] = df[col].astype(str)
                 
+                datos_validos = True
                 st.success(f"✅ Archivo de datos procesados cargado: {uploaded_processed.name}")
                 st.info(f"📊 Registros: {len(df)} | Columnas: {len(df.columns)}")
                 
@@ -404,11 +407,51 @@ def selection_by_area_tab():
             
             except Exception as e:
                 st.error(f"❌ Error al procesar el archivo: {str(e)}")
-                return
+    
+    # Si no tenemos datos válidos todavía, no continuamos
+    if not datos_validos:
+        st.warning("⚠️ Necesitas cargar datos procesados para continuar")
+        return
+    
+    # A partir de aquí, continuamos con el proceso de selección por área
+    
+    # Detectar columna de DNI en datos procesados - MOVER AQUÍ PARA EVITAR EL ERROR
+    dni_column = None
+    if 'DNI_Validado' in df.columns:
+        dni_column = 'DNI_Validado'
+    else:
+        # Buscar columna de DNI con detección mejorada
+        dni_cols = []
+        for col in df.columns:
+            # Normalizar nombre de columna para comparación (quitar espacios, convertir a minúsculas)
+            col_norm = col.strip().lower()
+            if 'dni' in col_norm or 'pasaporte' in col_norm or 'documento' in col_norm or 'doc' in col_norm:
+                dni_cols.append(col)
+        
+        # Si encontramos columnas de DNI, usar la primera
+        if dni_cols:
+            dni_column = dni_cols[0]
+            st.success(f"✅ Se detectó la columna de DNI en datos principales: '{dni_column}'")
+        else:
+            # Si aún no encuentra, ofrecer selección manual
+            st.warning("⚠️ No se detectó automáticamente una columna de DNI en los datos principales. Por favor, selecciona la columna manualmente.")
+            
+            dni_column = st.selectbox(
+                "Selecciona la columna que contiene los DNIs en los datos principales:",
+                options=df.columns.tolist(),
+                key="dni_column_main_data"
+            )
+    
+    # Verificar nuevamente que la columna existe
+    if dni_column not in df.columns:
+        st.error(f"❌ La columna '{dni_column}' no existe en los datos procesados")
+        return
+    
+    # Convertir explícitamente a string la columna DNI de los datos procesados
+    df[dni_column] = df[dni_column].astype(str)
     
     # Cargar archivo de selección
-    if import_option != "Usar los datos procesados del paso anterior":
-        st.subheader("Archivo de DNIs Seleccionados")
+    st.subheader("Archivo de DNIs Seleccionados")
     
     uploaded_selection = st.file_uploader(
         "Selecciona el archivo Excel/CSV con los DNIs de yakus seleccionados", 
@@ -438,40 +481,23 @@ def selection_by_area_tab():
             st.subheader("Columna de DNI en Archivo de Selección")
             
             # Detectar columnas de DNI
-            selection_dni_cols = [col for col in selection_df.columns if 'dni' in col.lower() or 'pasaporte' in col.lower()]
+            selection_dni_cols = [col for col in selection_df.columns if 'dni' in col.lower() or 'pasaporte' in col.lower() or 'documento' in col.lower() or 'doc' in col.lower()]
             
             if not selection_dni_cols:
                 st.warning("⚠️ No se detectó ninguna columna de DNI o Pasaporte en el archivo de selección")
                 # Mostrar todas las columnas para selección manual
                 selection_dni_col = st.selectbox(
-                    "Selecciona la columna que contiene los DNIs/Pasaportes",
+                    "Selecciona la columna que contiene los DNIs/Pasaportes en el archivo de selección:",
                     options=selection_df.columns.tolist()
                 )
             else:
                 selection_dni_col = st.selectbox(
-                    "Selecciona la columna de DNI/Pasaporte",
+                    "Selecciona la columna de DNI/Pasaporte en el archivo de selección:",
                     options=selection_dni_cols
                 )
             
             # Convertir explícitamente a string la columna DNI del archivo de selección
             selection_df[selection_dni_col] = selection_df[selection_dni_col].astype(str)
-            
-            # Detectar columna de DNI en datos procesados
-            dni_column = None
-            if 'DNI_Validado' in df.columns:
-                dni_column = 'DNI_Validado'
-            else:
-                # Buscar columna de DNI
-                dni_cols = [col for col in df.columns if 'dni' in col.lower() or 'pasaporte' in col.lower()]
-                if dni_cols:
-                    dni_column = dni_cols[0]
-            
-            if dni_column is None:
-                st.error("❌ No se encontró una columna de DNI en los datos procesados")
-                return
-            
-            # Convertir explícitamente a string la columna DNI de los datos procesados
-            df[dni_column] = df[dni_column].astype(str)
             
             # Detectar columna de área
             area_cols = [col for col in df.columns if 'área' in col.lower() or 'area' in col.lower() or 'interesado' in col.lower()]
@@ -504,12 +530,16 @@ def selection_by_area_tab():
             if st.button("Filtrar por Área Seleccionada"):
                 try:
                     with st.spinner("Procesando filtrado por área..."):
+                        # Mostrar información de depuración
+                        st.info(f"Columna DNI en datos principales: '{dni_column}'")
+                        st.info(f"Columna DNI en archivo de selección: '{selection_dni_col}'")
+                        
                         # Filtrar por área y selección
                         filtered_df, not_found_dnis = filter_by_area_and_selection(
                             df, 
                             selection_df, 
                             area_column, 
-                            selection_dni_col, 
+                            selection_dni_col,  # Cambiar aquí: usar selection_dni_col en lugar de dni_column
                             selected_area
                         )
                         

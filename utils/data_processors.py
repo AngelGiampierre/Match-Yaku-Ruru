@@ -233,7 +233,7 @@ def filter_by_area_and_selection(main_df, selection_df, area_column, dni_column,
         main_df (pd.DataFrame): DataFrame principal con todos los datos
         selection_df (pd.DataFrame): DataFrame con los DNIs seleccionados
         area_column (str): Nombre de la columna de área en el DataFrame principal
-        dni_column (str): Nombre de la columna de DNI en ambos DataFrames
+        dni_column (str): Nombre de la columna de DNI en el DataFrame de selección
         area_value (str): Valor del área a filtrar
         
     Returns:
@@ -243,12 +243,27 @@ def filter_by_area_and_selection(main_df, selection_df, area_column, dni_column,
     main_df = main_df.copy()
     selection_df = selection_df.copy()
     
+    # Determinar la columna de DNI en el DataFrame principal
+    main_dni_column = None
+    if 'DNI_Validado' in main_df.columns:
+        main_dni_column = 'DNI_Validado'
+    else:
+        # Buscar columna de DNI con detección automática
+        for col in main_df.columns:
+            col_norm = col.strip().lower()
+            if 'dni' in col_norm or 'pasaporte' in col_norm or 'documento' in col_norm or 'doc' in col_norm:
+                main_dni_column = col
+                break
+    
+    if main_dni_column is None:
+        raise ValueError("No se pudo encontrar una columna de DNI en el DataFrame principal")
+    
     # Asegurar que el DNI sea string en ambos DataFrames
-    main_df[dni_column] = main_df[dni_column].astype(str)
+    main_df[main_dni_column] = main_df[main_dni_column].astype(str)
     selection_df[dni_column] = selection_df[dni_column].astype(str)
     
     # Normalizamos los DNIs en ambos DataFrames
-    main_df['DNI_Normalizado'] = main_df[dni_column].apply(standardize_dni)
+    main_df['DNI_Normalizado'] = main_df[main_dni_column].apply(standardize_dni)
     selection_df['DNI_Normalizado'] = selection_df[dni_column].apply(standardize_dni)
     
     # Lista de DNIs seleccionados normalizados
