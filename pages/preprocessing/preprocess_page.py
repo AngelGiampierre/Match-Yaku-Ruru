@@ -181,7 +181,29 @@ def load_and_clean_tab():
                                 
                                 if not duplicates.empty:
                                     st.warning(f"⚠️ Se encontraron {len(duplicates)} DNIs duplicados:")
-                                    st.dataframe(duplicates[[dni_column, 'DNI_Validado']])
+                                    
+                                    # Detectar columnas para mejor visualización
+                                    display_columns = [dni_column, 'DNI_Validado']
+                                    
+                                    # Añadir columnas relevantes para verificar si es la misma persona
+                                    nombre_cols = [col for col in filtered_df.columns if 'nombre' in col.lower() or 'apellido' in col.lower()]
+                                    if nombre_cols:
+                                        display_columns.extend(nombre_cols)
+                                    
+                                    # Añadir columna de email si existe
+                                    email_cols = [col for col in filtered_df.columns if 'email' in col.lower() or 'correo' in col.lower()]
+                                    if email_cols:
+                                        display_columns.extend(email_cols)
+                                    
+                                    # Añadir columna de área si existe
+                                    area_cols = [col for col in filtered_df.columns if 'área' in col.lower() or 'area' in col.lower()]
+                                    if area_cols:
+                                        display_columns.extend(area_cols)
+                                    
+                                    # Mostrar tabla de DNIs duplicados con información ampliada
+                                    st.dataframe(duplicates[display_columns])
+                                    
+                                    st.info("ℹ️ Verifica si los duplicados corresponden a la misma persona aplicando a diferentes áreas o si son errores de datos.")
                                 else:
                                     st.success("✅ No se encontraron DNIs duplicados")
                     
@@ -274,8 +296,57 @@ def load_and_clean_tab():
                 st.subheader("Vista Previa de Datos Procesados")
                 st.dataframe(filtered_df.head(10))
                 
-                # Botón para continuar
-                st.success("✅ Datos procesados correctamente. Puedes continuar a la siguiente pestaña.")
+                # Botón para exportar datos procesados directamente desde el Paso 1
+                st.subheader("Exportar Datos Procesados (Paso 1)")
+                
+                export_format = st.radio(
+                    "Formato de exportación:",
+                    options=["Excel (.xlsx)", "CSV (.csv)"],
+                    key="export_format_step1"
+                )
+                
+                include_validation_step1 = st.checkbox(
+                    "Incluir columnas de validación (DNI_Validado, etc.)", 
+                    value=True,
+                    key="include_validation_step1"
+                )
+                
+                # Crear nombre de archivo
+                timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+                default_filename = f"yakus_procesados_paso1_{timestamp}"
+                export_filename_step1 = st.text_input("Nombre del archivo:", value=default_filename, key="export_filename_step1")
+                
+                if st.button("Exportar Datos del Paso 1"):
+                    # Eliminar columnas de validación si no se desean incluir
+                    export_df = filtered_df.copy()
+                    
+                    # Asegurarnos que todas las columnas de texto sean de tipo string
+                    for col in export_df.select_dtypes(include=['object']).columns:
+                        export_df[col] = export_df[col].astype(str)
+                    
+                    if not include_validation_step1:
+                        validation_cols = [col for col in export_df.columns if '_Validado' in col or '_Normalizado' in col]
+                        if validation_cols:
+                            export_df = export_df.drop(columns=validation_cols)
+                    
+                    # Exportar según formato
+                    if export_format == "Excel (.xlsx)":
+                        output = BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            export_df.to_excel(writer, sheet_name='Datos', index=False)
+                        
+                        output.seek(0)
+                        b64 = base64.b64encode(output.read()).decode()
+                        href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{export_filename_step1}.xlsx">📥 Descargar archivo Excel</a>'
+                        st.markdown(href, unsafe_allow_html=True)
+                    
+                    else:  # CSV
+                        csv = export_df.to_csv(index=False)
+                        b64 = base64.b64encode(csv.encode()).decode()
+                        href = f'<a href="data:text/csv;base64,{b64}" download="{export_filename_step1}.csv">📥 Descargar archivo CSV</a>'
+                        st.markdown(href, unsafe_allow_html=True)
+                    
+                    st.success(f"✅ Archivo '{export_filename_step1}' listo para descargar")
         
         except Exception as e:
             st.error(f"❌ Error al procesar el archivo: {str(e)}")
@@ -292,7 +363,53 @@ def selection_by_area_tab():
     # Datos procesados
     df = st.session_state.processed_data
     
+    # Nueva sección para destacar las dos opciones de importación
+    st.subheader("Importación de Datos")
+    
+    import_option = st.radio(
+        "Selecciona una opción:",
+        options=[
+            "Usar los datos procesados del paso anterior",
+            "Importar archivo de datos procesados (exportado del Paso 1)",
+            "Cargar solo archivo con DNIs seleccionados"
+        ],
+        index=0
+    )
+    
+    # Cargar datos según la opción seleccionada
+    if import_option == "Importar archivo de datos procesados (exportado del Paso 1)":
+        uploaded_processed = st.file_uploader(
+            "Selecciona el archivo Excel/CSV con los datos procesados", 
+            type=["xlsx", "csv"],
+            key="file_uploader_processed"
+        )
+        
+        if uploaded_processed is not None:
+            try:
+                # Cargar datos según tipo de archivo
+                if uploaded_processed.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_processed)
+                else:
+                    df = pd.read_excel(uploaded_processed)
+                
+                # Convertir todas las columnas de texto a string para evitar problemas con PyArrow
+                for col in df.select_dtypes(include=['object']).columns:
+                    df[col] = df[col].astype(str)
+                
+                st.success(f"✅ Archivo de datos procesados cargado: {uploaded_processed.name}")
+                st.info(f"📊 Registros: {len(df)} | Columnas: {len(df.columns)}")
+                
+                # Actualizar datos procesados en la sesión
+                st.session_state.processed_data = df
+            
+            except Exception as e:
+                st.error(f"❌ Error al procesar el archivo: {str(e)}")
+                return
+    
     # Cargar archivo de selección
+    if import_option != "Usar los datos procesados del paso anterior":
+        st.subheader("Archivo de DNIs Seleccionados")
+    
     uploaded_selection = st.file_uploader(
         "Selecciona el archivo Excel/CSV con los DNIs de yakus seleccionados", 
         type=["xlsx", "csv"],
