@@ -266,8 +266,69 @@ def filter_by_area_and_selection(main_df, selection_df, area_column, dni_column,
     main_df['DNI_Normalizado'] = main_df[main_dni_column].apply(standardize_dni)
     selection_df['DNI_Normalizado'] = selection_df[dni_column].apply(standardize_dni)
     
-    # Lista de DNIs seleccionados normalizados
+    # ----- NUEVA PARTE: Verificar validez de DNIs en la lista de seleccionados -----
+    # Filtrar DNIs inválidos (aquellos que contienen 'ERROR')
+    invalid_dnis_mask = selection_df['DNI_Normalizado'].str.contains('ERROR', na=False)
+    if invalid_dnis_mask.any():
+        print(f"⚠️ Se encontraron {invalid_dnis_mask.sum()} DNIs inválidos en la lista de seleccionados.")
+        # Eliminar los DNIs inválidos
+        selection_df = selection_df[~invalid_dnis_mask]
+        if selection_df.empty:
+            raise ValueError("Todos los DNIs en la lista de seleccionados son inválidos")
+    
+    # Lista de DNIs seleccionados normalizados y válidos
     selected_dnis = selection_df['DNI_Normalizado'].unique().tolist()
+    
+    # ----- NUEVA PARTE: Actualizar cursos de Arte y Cultura si es necesario -----
+    # Verificar si estamos trabajando con el área de Arte y Cultura
+    is_arte_cultura = False
+    arte_cultura_values = ['arte y cultura', 'arte', 'cultura', 'talleres artísticos']
+    
+    for ac_value in arte_cultura_values:
+        if ac_value in area_value.lower():
+            is_arte_cultura = True
+            break
+    
+    if is_arte_cultura:
+        print(f"🎨 Procesando área de Arte y Cultura: {area_value}")
+        
+        # Buscar columnas de curso/taller en ambos DataFrames
+        course_cols_main = []
+        for col in main_df.columns:
+            col_lower = col.lower()
+            if 'curso' in col_lower or 'taller' in col_lower or 'especialidad' in col_lower or 'asignatura' in col_lower:
+                course_cols_main.append(col)
+        
+        course_cols_selection = []
+        for col in selection_df.columns:
+            col_lower = col.lower()
+            if 'curso' in col_lower or 'taller' in col_lower or 'especialidad' in col_lower or 'asignatura' in col_lower:
+                course_cols_selection.append(col)
+        
+        # Si encontramos columnas de curso en ambos DataFrames, procedemos a actualizar
+        if course_cols_main and course_cols_selection:
+            main_course_col = course_cols_main[0]
+            selection_course_col = course_cols_selection[0]
+            
+            print(f"📚 Columna de curso en datos principales: {main_course_col}")
+            print(f"📚 Columna de curso en lista de seleccionados: {selection_course_col}")
+            
+            # Iterar sobre los DNIs seleccionados para actualizar sus cursos
+            for dni in selected_dnis:
+                # Encontrar el curso en la lista de seleccionados
+                selection_rows = selection_df[selection_df['DNI_Normalizado'] == dni]
+                if not selection_rows.empty and selection_course_col in selection_rows.columns:
+                    updated_course = selection_rows[selection_course_col].iloc[0]
+                    
+                    # Actualizar el curso en el DataFrame principal
+                    main_rows = main_df[main_df['DNI_Normalizado'] == dni]
+                    if not main_rows.empty:
+                        for idx in main_rows.index:
+                            # Solo actualizar si hay un cambio
+                            current_course = main_df.loc[idx, main_course_col]
+                            if current_course != updated_course and pd.notna(updated_course) and updated_course.strip() != "":
+                                print(f"🔄 Actualizando curso para DNI {dni}: {current_course} → {updated_course}")
+                                main_df.loc[idx, main_course_col] = updated_course
     
     # Filtramos: si es del área especificada, solo mantenemos si está en la lista de seleccionados
     mask_to_remove = (main_df[area_column] == area_value) & (~main_df['DNI_Normalizado'].isin(selected_dnis))

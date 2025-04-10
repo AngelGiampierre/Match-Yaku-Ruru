@@ -499,6 +499,83 @@ def selection_by_area_tab():
             # Convertir explícitamente a string la columna DNI del archivo de selección
             selection_df[selection_dni_col] = selection_df[selection_dni_col].astype(str)
             
+            # NUEVA SECCIÓN: Validar DNIs en la lista de seleccionados
+            with st.expander("Validación de DNIs en Lista de Seleccionados", expanded=True):
+                st.subheader("Validación de DNIs")
+                
+                # Aplicar la función de validación
+                selection_df['DNI_Validado'] = selection_df[selection_dni_col].apply(standardize_dni)
+                
+                # Detectar DNIs inválidos
+                invalid_dnis_mask = selection_df['DNI_Validado'].str.contains('ERROR', na=False)
+                
+                if invalid_dnis_mask.any():
+                    invalid_dnis_df = selection_df[invalid_dnis_mask].copy()
+                    
+                    st.warning(f"⚠️ Se encontraron {len(invalid_dnis_df)} DNIs inválidos en la lista de seleccionados")
+                    
+                    # Mostrar DNIs inválidos en una tabla
+                    st.dataframe(invalid_dnis_df[[selection_dni_col, 'DNI_Validado']])
+                    
+                    # Ofrecer opciones al usuario
+                    edit_option = st.radio(
+                        "¿Qué deseas hacer con los DNIs inválidos?",
+                        options=["Editar manualmente", "Ignorar y continuar (se filtrarán automáticamente)"],
+                        index=0
+                    )
+                    
+                    if edit_option == "Editar manualmente":
+                        st.subheader("Edición de DNIs Inválidos")
+                        st.info("Edita los DNIs inválidos uno por uno:")
+                        
+                        # Determinar si se han corregido todos los DNIs
+                        all_fixed = True
+                        
+                        # Editar DNIs uno por uno
+                        for idx, row in invalid_dnis_df.iterrows():
+                            # Crear una columna para cada DNI
+                            col1, col2 = st.columns([3, 2])
+                            
+                            with col1:
+                                # Mostrar información del registro
+                                st.text(f"DNI Actual: {row[selection_dni_col]}")
+                                st.text(f"Error: {row['DNI_Validado']}")
+                                
+                                # Permitir editar el DNI
+                                new_dni = st.text_input(
+                                    "Nuevo valor de DNI:",
+                                    value=row[selection_dni_col],
+                                    key=f"new_dni_{idx}"
+                                )
+                                
+                                # Validar el nuevo valor de DNI
+                                validated_dni = standardize_dni(new_dni)
+                                
+                            with col2:
+                                # Mostrar resultado de la validación
+                                if "ERROR" in validated_dni:
+                                    st.error(f"⚠️ Aún inválido: {validated_dni}")
+                                    all_fixed = False
+                                else:
+                                    st.success(f"✅ Válido: {validated_dni}")
+                                
+                                # Botón para aplicar cambio
+                                if st.button("Actualizar", key=f"update_btn_{idx}"):
+                                    selection_df.loc[idx, selection_dni_col] = new_dni
+                                    selection_df.loc[idx, 'DNI_Validado'] = validated_dni
+                                    st.success(f"✅ DNI actualizado")
+                                    # Recargar la página para actualizar la tabla
+                                    st.experimental_rerun()
+                            
+                            st.markdown("---")
+                        
+                        if not all_fixed:
+                            st.warning("⚠️ Aún hay DNIs inválidos que no se han corregido")
+                        else:
+                            st.success("✅ Todos los DNIs han sido corregidos")
+                else:
+                    st.success("✅ Todos los DNIs en la lista de seleccionados son válidos")
+            
             # Detectar columna de área
             area_cols = [col for col in df.columns if 'área' in col.lower() or 'area' in col.lower() or 'interesado' in col.lower()]
             
@@ -534,14 +611,33 @@ def selection_by_area_tab():
                         st.info(f"Columna DNI en datos principales: '{dni_column}'")
                         st.info(f"Columna DNI en archivo de selección: '{selection_dni_col}'")
                         
+                        # Capturar salida de texto de la función
+                        import io
+                        import sys
+                        old_stdout = sys.stdout
+                        new_stdout = io.StringIO()
+                        sys.stdout = new_stdout
+                        
                         # Filtrar por área y selección
                         filtered_df, not_found_dnis = filter_by_area_and_selection(
                             df, 
                             selection_df, 
                             area_column, 
-                            selection_dni_col,  # Cambiar aquí: usar selection_dni_col en lugar de dni_column
+                            selection_dni_col,
                             selected_area
                         )
+                        
+                        # Restaurar stdout y capturar el texto
+                        sys.stdout = old_stdout
+                        output_text = new_stdout.getvalue()
+                        
+                        # Mostrar mensajes importantes de la función
+                        if "🎨 Procesando área de Arte y Cultura" in output_text:
+                            st.info("🎨 Procesando Arte y Cultura - Se verificarán actualizaciones de cursos")
+                        
+                        for line in output_text.split('\n'):
+                            if "Actualizando curso" in line or "DNIs inválidos" in line:
+                                st.warning(line)
                         
                         # Guardar resultado en sesión
                         st.session_state.export_data = filtered_df
