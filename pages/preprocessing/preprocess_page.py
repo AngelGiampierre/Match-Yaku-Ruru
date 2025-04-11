@@ -150,29 +150,46 @@ def load_and_clean_tab():
                                     # Mostrar tabla de DNIs inválidos
                                     st.dataframe(invalid_dnis[[dni_column, 'DNI_Validado']])
                                     
-                                    # Ofrecer corrección manual
-                                    st.subheader("Corrección Manual de DNI")
-                                    
-                                    # Seleccionar índice a corregir
-                                    index_options = invalid_dnis.index.tolist()
-                                    index_to_fix = st.selectbox(
-                                        "Selecciona el índice a corregir:", 
-                                        index_options,
-                                        key="dni_index_selector"
+                                    # Ofrecer opciones al usuario
+                                    dni_edit_option = st.radio(
+                                        "¿Qué deseas hacer con los DNIs inválidos?",
+                                        options=["Editar manualmente", "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)"],
+                                        index=1,
+                                        key="dni_edit_option_main"
                                     )
                                     
-                                    # Valor actual y nuevo valor
-                                    current_value = filtered_df.loc[index_to_fix, dni_column]
-                                    new_value = st.text_input(
-                                        "Nuevo valor:", 
-                                        value=current_value,
-                                        key="dni_value_input"
-                                    )
-                                    
-                                    if st.button("Actualizar DNI", key="update_dni_btn"):
-                                        filtered_df.loc[index_to_fix, dni_column] = new_value
-                                        filtered_df.loc[index_to_fix, 'DNI_Validado'] = standardize_dni(new_value)
-                                        st.success(f"✅ DNI actualizado correctamente")
+                                    if dni_edit_option == "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)":
+                                        # Conservar los valores originales para carnets de extranjería y otros documentos
+                                        st.info("ℹ️ Se conservarán los valores originales de los documentos de identidad")
+                                        for idx in invalid_dnis.index:
+                                            # Usar el valor original del documento como valor validado
+                                            original_value = filtered_df.loc[idx, dni_column]
+                                            filtered_df.loc[idx, 'DNI_Validado'] = original_value
+                                        st.success("✅ Todos los valores originales han sido conservados")
+                                    else:
+                                        # Ofrecer corrección manual
+                                        st.subheader("Corrección Manual de DNI")
+                                        
+                                        # Seleccionar índice a corregir
+                                        index_options = invalid_dnis.index.tolist()
+                                        index_to_fix = st.selectbox(
+                                            "Selecciona el índice a corregir:", 
+                                            index_options,
+                                            key="dni_index_selector"
+                                        )
+                                        
+                                        # Valor actual y nuevo valor
+                                        current_value = filtered_df.loc[index_to_fix, dni_column]
+                                        new_value = st.text_input(
+                                            "Nuevo valor:", 
+                                            value=current_value,
+                                            key="dni_value_input"
+                                        )
+                                        
+                                        if st.button("Actualizar DNI", key="update_dni_btn"):
+                                            filtered_df.loc[index_to_fix, dni_column] = new_value
+                                            filtered_df.loc[index_to_fix, 'DNI_Validado'] = standardize_dni(new_value)
+                                            st.success(f"✅ DNI actualizado correctamente")
                                 else:
                                     st.success("✅ Todos los DNIs tienen un formato válido")
                                 
@@ -291,6 +308,61 @@ def load_and_clean_tab():
                 
                 # Guardar el DataFrame procesado en la sesión
                 st.session_state.processed_data = filtered_df
+                
+                # --- NUEVA SECCIÓN: ORDENAMIENTO POR ÁREA ---
+                st.subheader("Ordenar por Área")
+                
+                # Buscar columnas potenciales de área
+                area_columns = [col for col in filtered_df.columns if 'área' in col.lower() or 'area' in col.lower() or 'interesado' in col.lower()]
+                
+                if area_columns:
+                    # Permitir seleccionar columna de área
+                    sort_area_column = st.selectbox(
+                        "Selecciona la columna de área para ordenar:",
+                        options=area_columns,
+                        key="sort_area_column"
+                    )
+                    
+                    # Opción para ordenar
+                    if st.button("Ordenar por Área", key="sort_by_area_btn"):
+                        with st.spinner("Ordenando datos por área..."):
+                            # Ordenar DataFrame
+                            filtered_df = filtered_df.sort_values(by=sort_area_column)
+                            
+                            # Actualizar DataFrame en sesión
+                            st.session_state.processed_data = filtered_df
+                            
+                            st.success("✅ Datos ordenados por área")
+                else:
+                    st.info("ℹ️ No se detectaron columnas de área para ordenar los datos")
+                
+                # Opción adicional para ordenar por cualquier columna
+                st.subheader("Ordenar por Otra Columna")
+                
+                # Seleccionar columna para ordenar
+                sort_column = st.selectbox(
+                    "Selecciona una columna para ordenar:",
+                    options=filtered_df.columns.tolist(),
+                    key="sort_column"
+                )
+                
+                # Dirección del ordenamiento
+                sort_direction = st.radio(
+                    "Dirección:",
+                    options=["Ascendente", "Descendente"],
+                    key="sort_direction"
+                )
+                
+                if st.button("Ordenar Datos", key="sort_data_btn"):
+                    with st.spinner("Ordenando datos..."):
+                        # Ordenar DataFrame
+                        ascending = sort_direction == "Ascendente"
+                        filtered_df = filtered_df.sort_values(by=sort_column, ascending=ascending)
+                        
+                        # Actualizar DataFrame en sesión
+                        st.session_state.processed_data = filtered_df
+                        
+                        st.success(f"✅ Datos ordenados por '{sort_column}' ({sort_direction.lower()})")
                 
                 # Mostrar vista previa
                 st.subheader("Vista Previa de Datos Procesados")
@@ -450,8 +522,16 @@ def selection_by_area_tab():
     # Convertir explícitamente a string la columna DNI de los datos procesados
     df[dni_column] = df[dni_column].astype(str)
     
+    # VISUALIZACIÓN PARCIAL DE DATOS PRINCIPALES
+    with st.expander("Visualización de Datos Principales", expanded=False):
+        st.subheader("Archivo de Datos Principales")
+        st.dataframe(df)
+    
     # Cargar archivo de selección
     st.subheader("Archivo de DNIs Seleccionados")
+    
+    # Inicializar selection_df como None para verificar después si se ha cargado
+    selection_df = None
     
     uploaded_selection = st.file_uploader(
         "Selecciona el archivo Excel/CSV con los DNIs de yakus seleccionados", 
@@ -476,6 +556,11 @@ def selection_by_area_tab():
             
             st.success(f"✅ Archivo de selección cargado: {uploaded_selection.name}")
             st.info(f"📊 Registros: {len(selection_df)} | Columnas: {len(selection_df.columns)}")
+            
+            # VISUALIZACIÓN DEL ARCHIVO DE SELECCIÓN - MOVER AQUÍ DENTRO DEL BLOQUE CONDICIONAL
+            with st.expander("Visualización de Archivo de Selección", expanded=False):
+                st.subheader("Archivo de DNIs Seleccionados")
+                st.dataframe(selection_df)
             
             # Mostrar columnas disponibles en el archivo de selección
             st.subheader("Columna de DNI en Archivo de Selección")
@@ -514,14 +599,27 @@ def selection_by_area_tab():
                     
                     st.warning(f"⚠️ Se encontraron {len(invalid_dnis_df)} DNIs inválidos en la lista de seleccionados")
                     
+                    # Buscar y añadir nombre si existe
+                    nombre_cols = []
+                    for col in selection_df.columns:
+                        col_lower = col.lower()
+                        if 'nombre' in col_lower or 'apellido' in col_lower:
+                            nombre_cols.append(col)
+                    
+                    # Crear columnas a mostrar
+                    display_cols = [selection_dni_col, 'DNI_Validado']
+                    if nombre_cols:
+                        display_cols.extend(nombre_cols)
+                        st.info("ℹ️ Se muestran los nombres para facilitar la identificación")
+                    
                     # Mostrar DNIs inválidos en una tabla
-                    st.dataframe(invalid_dnis_df[[selection_dni_col, 'DNI_Validado']])
+                    st.dataframe(invalid_dnis_df[display_cols])
                     
                     # Ofrecer opciones al usuario
                     edit_option = st.radio(
                         "¿Qué deseas hacer con los DNIs inválidos?",
-                        options=["Editar manualmente", "Ignorar y continuar (se filtrarán automáticamente)"],
-                        index=0
+                        options=["Editar manualmente", "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)"],
+                        index=1
                     )
                     
                     if edit_option == "Editar manualmente":
@@ -540,6 +638,11 @@ def selection_by_area_tab():
                                 # Mostrar información del registro
                                 st.text(f"DNI Actual: {row[selection_dni_col]}")
                                 st.text(f"Error: {row['DNI_Validado']}")
+                                
+                                # Mostrar nombre si está disponible
+                                if nombre_cols:
+                                    nombres_completos = " ".join([str(row[col]) for col in nombre_cols])
+                                    st.text(f"Nombre: {nombres_completos}")
                                 
                                 # Permitir editar el DNI
                                 new_dni = st.text_input(
@@ -561,11 +664,11 @@ def selection_by_area_tab():
                                 
                                 # Botón para aplicar cambio
                                 if st.button("Actualizar", key=f"update_btn_{idx}"):
-                                    selection_df.loc[idx, selection_dni_col] = new_dni
+                                    selection_df.loc[idx, selection_dni_col] = validated_dni if "ERROR" not in validated_dni else new_dni
                                     selection_df.loc[idx, 'DNI_Validado'] = validated_dni
                                     st.success(f"✅ DNI actualizado")
-                                    # Recargar la página para actualizar la tabla
-                                    st.experimental_rerun()
+                                    # Reemplazar experimental_rerun por rerun
+                                    st.rerun()
                             
                             st.markdown("---")
                         
