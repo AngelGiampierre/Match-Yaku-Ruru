@@ -28,9 +28,13 @@ def preprocess_main():
     st.markdown("<p class='info-text'>Limpia y prepara tus datos antes de realizar el match</p>", unsafe_allow_html=True)
     
     # Inicializar variables de estado si no existen
-    for key in ['yakus_data', 'processed_data', 'selected_data', 'export_data']:
+    for key in ['yakus_data', 'processed_data', 'selected_data', 'export_data', 'last_action']:
         if key not in st.session_state:
             st.session_state[key] = None
+    
+    # Variable para rastrear acciones de usuario
+    if 'last_action' not in st.session_state:
+        st.session_state['last_action'] = None
     
     # Crear tabs para las diferentes funcionalidades
     tab1, tab2, tab3 = st.tabs([
@@ -52,6 +56,20 @@ def load_and_clean_tab():
     """Tab para carga de datos y limpieza de DNI/Pasaporte y Email"""
     st.header("Carga y Limpieza de Datos")
     
+    # Verificar el estado actual de los datos procesados
+    if st.session_state.processed_data is not None:
+        st.success(f"✅ Datos procesados disponibles: {len(st.session_state.processed_data)} registros")
+        
+        # Opción para ver el estado actual de los datos
+        if st.checkbox("Mostrar estado actual de los datos procesados", key="show_current_state"):
+            st.write("Primeros 5 registros de los datos procesados:")
+            st.dataframe(st.session_state.processed_data.head(5))
+            
+            # Verificar si hay columnas validadas
+            validated_cols = [col for col in st.session_state.processed_data.columns if '_Validado' in col]
+            if validated_cols:
+                st.info(f"Columnas validadas disponibles: {', '.join(validated_cols)}")
+    
     # Cargar archivo Excel/CSV
     uploaded_file = st.file_uploader(
         "Selecciona el archivo Excel/CSV con los datos de yakus", 
@@ -71,8 +89,8 @@ def load_and_clean_tab():
             for col in df.select_dtypes(include=['object']).columns:
                 df[col] = df[col].astype(str)
             
-            # Guardar datos en sesión
-            st.session_state.yakus_data = df
+            # Guardar datos originales en sesión
+            st.session_state.yakus_data = df.copy()
             
             # Mostrar información básica
             st.success(f"✅ Archivo cargado: {uploaded_file.name}")
@@ -108,290 +126,381 @@ def load_and_clean_tab():
             )
             
             if selected_columns:
-                # Crear DataFrame con columnas seleccionadas
-                filtered_df = df[selected_columns].copy()
-                
-                # Convertir todas las columnas de texto a string para evitar problemas con PyArrow
-                for col in filtered_df.select_dtypes(include=['object']).columns:
-                    filtered_df[col] = filtered_df[col].astype(str)
-                
-                # Contenedor para validación de datos
-                validation_container = st.container()
-                
-                with validation_container:
-                    # Organizar las validaciones en tabs para mejor visualización
-                    val_tab1, val_tab2 = st.tabs(["DNI/Pasaporte", "Correo Electrónico"])
+                # IMPORTANTE: Verificar si ya tenemos datos procesados en la sesión
+                # Si es así, usamos esos datos en lugar de recrear el DataFrame
+                if st.session_state.processed_data is not None:
+                    # Usar los datos procesados existentes
+                    filtered_df = st.session_state.processed_data.copy()
+                    st.success("✅ Usando datos procesados guardados en la sesión")
+                    st.info(f"Los datos ya contienen ediciones previas y ordenamiento")
+                else:
+                    # Crear DataFrame nuevo con columnas seleccionadas
+                    filtered_df = df[selected_columns].copy()
                     
-                    # ---- VALIDACIÓN DE DNI/PASAPORTE ----
-                    with val_tab1:
-                        st.subheader("Limpieza de DNI/Pasaporte")
-                        
-                        # Detectar columna de DNI
-                        dni_columns = [col for col in selected_columns if 'dni' in col.lower() or 'pasaporte' in col.lower()]
-                        
-                        if not dni_columns:
-                            st.warning("⚠️ No se detectó ninguna columna de DNI o Pasaporte. Por favor, verifica la selección de columnas.")
-                        else:
-                            dni_column = st.selectbox("Selecciona la columna de DNI/Pasaporte", dni_columns)
-                            
-                            # Convertir explícitamente a string la columna DNI para evitar problemas con PyArrow
-                            filtered_df[dni_column] = filtered_df[dni_column].astype(str)
-                            
-                            # Validar y estandarizar DNIs
-                            with st.spinner("Procesando DNIs..."):
-                                filtered_df['DNI_Validado'] = filtered_df[dni_column].apply(standardize_dni)
-                                
-                                # Detectar DNIs con problemas
-                                invalid_dnis = filtered_df[filtered_df['DNI_Validado'].str.contains('ERROR')]
-                                
-                                if not invalid_dnis.empty:
-                                    st.warning(f"⚠️ Se encontraron {len(invalid_dnis)} DNIs con formato incorrecto:")
-                                    
-                                    # Mostrar tabla de DNIs inválidos
-                                    st.dataframe(invalid_dnis[[dni_column, 'DNI_Validado']])
-                                    
-                                    # Ofrecer opciones al usuario
-                                    dni_edit_option = st.radio(
-                                        "¿Qué deseas hacer con los DNIs inválidos?",
-                                        options=["Editar manualmente", "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)"],
-                                        index=1,
-                                        key="dni_edit_option_main"
-                                    )
-                                    
-                                    if dni_edit_option == "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)":
-                                        # Conservar los valores originales para carnets de extranjería y otros documentos
-                                        st.info("ℹ️ Se conservarán los valores originales de los documentos de identidad")
-                                        for idx in invalid_dnis.index:
-                                            # Usar el valor original del documento como valor validado
-                                            original_value = filtered_df.loc[idx, dni_column]
-                                            filtered_df.loc[idx, 'DNI_Validado'] = original_value
-                                        st.success("✅ Todos los valores originales han sido conservados")
-                                    else:
-                                        # Ofrecer corrección manual
-                                        st.subheader("Corrección Manual de DNI")
-                                        
-                                        # Seleccionar índice a corregir
-                                        index_options = invalid_dnis.index.tolist()
-                                        index_to_fix = st.selectbox(
-                                            "Selecciona el índice a corregir:", 
-                                            index_options,
-                                            key="dni_index_selector"
-                                        )
-                                        
-                                        # Valor actual y nuevo valor
-                                        current_value = filtered_df.loc[index_to_fix, dni_column]
-                                        new_value = st.text_input(
-                                            "Nuevo valor:", 
-                                            value=current_value,
-                                            key="dni_value_input"
-                                        )
-                                        
-                                        if st.button("Actualizar DNI", key="update_dni_btn"):
-                                            filtered_df.loc[index_to_fix, dni_column] = new_value
-                                            filtered_df.loc[index_to_fix, 'DNI_Validado'] = standardize_dni(new_value)
-                                            st.success(f"✅ DNI actualizado correctamente")
-                                else:
-                                    st.success("✅ Todos los DNIs tienen un formato válido")
-                                
-                                # Verificar duplicados
-                                duplicates = get_duplicated_dnis(filtered_df, dni_column)
-                                
-                                if not duplicates.empty:
-                                    st.warning(f"⚠️ Se encontraron {len(duplicates)} DNIs duplicados:")
-                                    
-                                    # Detectar columnas para mejor visualización
-                                    display_columns = [dni_column, 'DNI_Validado']
-                                    
-                                    # Añadir columnas relevantes para verificar si es la misma persona
-                                    nombre_cols = [col for col in filtered_df.columns if 'nombre' in col.lower() or 'apellido' in col.lower()]
-                                    if nombre_cols:
-                                        display_columns.extend(nombre_cols)
-                                    
-                                    # Añadir columna de email si existe
-                                    email_cols = [col for col in filtered_df.columns if 'email' in col.lower() or 'correo' in col.lower()]
-                                    if email_cols:
-                                        display_columns.extend(email_cols)
-                                    
-                                    # Añadir columna de área si existe
-                                    area_cols = [col for col in filtered_df.columns if 'área' in col.lower() or 'area' in col.lower()]
-                                    if area_cols:
-                                        display_columns.extend(area_cols)
-                                    
-                                    # Mostrar tabla de DNIs duplicados con información ampliada
-                                    st.dataframe(duplicates[display_columns])
-                                    
-                                    st.info("ℹ️ Verifica si los duplicados corresponden a la misma persona aplicando a diferentes áreas o si son errores de datos.")
-                                else:
-                                    st.success("✅ No se encontraron DNIs duplicados")
+                    # Convertir todas las columnas de texto a string para evitar problemas con PyArrow
+                    for col in filtered_df.select_dtypes(include=['object']).columns:
+                        filtered_df[col] = filtered_df[col].astype(str)
                     
-                    # ---- VALIDACIÓN DE CORREO ELECTRÓNICO ----
-                    with val_tab2:
-                        st.subheader("Validación de Correo Electrónico")
+                    # Guardar en la sesión inmediatamente
+                    st.session_state.processed_data = filtered_df.copy()
+                    st.success("✅ Se ha creado un nuevo DataFrame procesado")
+            
+            # Contenedor para validación de datos
+            validation_container = st.container()
+            
+            with validation_container:
+                # Organizar las validaciones en tabs para mejor visualización
+                val_tab1, val_tab2 = st.tabs(["DNI/Pasaporte", "Correo Electrónico"])
+                
+                # ---- VALIDACIÓN DE DNI/PASAPORTE ----
+                with val_tab1:
+                    st.subheader("Limpieza de DNI/Pasaporte")
+                    
+                    # Detectar columna de DNI
+                    dni_columns = [col for col in selected_columns if 'dni' in col.lower() or 'pasaporte' in col.lower()]
+                    
+                    if not dni_columns:
+                        st.warning("⚠️ No se detectó ninguna columna de DNI o Pasaporte. Por favor, verifica la selección de columnas.")
+                    else:
+                        dni_column = st.selectbox("Selecciona la columna de DNI/Pasaporte", dni_columns)
                         
-                        # Detectar columna de email
-                        email_columns = [col for col in selected_columns if 'email' in col.lower() or 'correo' in col.lower()]
+                        # Convertir explícitamente a string la columna DNI para evitar problemas con PyArrow
+                        filtered_df[dni_column] = filtered_df[dni_column].astype(str)
                         
-                        if not email_columns:
-                            st.warning("⚠️ No se detectó ninguna columna de correo electrónico. Por favor, verifica la selección de columnas.")
-                        else:
-                            email_column = st.selectbox("Selecciona la columna de correo electrónico", email_columns)
+                        # Validar y estandarizar DNIs
+                        with st.spinner("Procesando DNIs..."):
+                            filtered_df['DNI_Validado'] = filtered_df[dni_column].apply(standardize_dni)
                             
-                            # Validar y estandarizar emails
-                            with st.spinner("Procesando correos electrónicos..."):
-                                filtered_df['Email_Validado'] = filtered_df[email_column].apply(validate_email)
+                            # Detectar DNIs con problemas
+                            invalid_dnis = filtered_df[filtered_df['DNI_Validado'].str.contains('ERROR')]
+                            
+                            if not invalid_dnis.empty:
+                                st.warning(f"⚠️ Se encontraron {len(invalid_dnis)} DNIs con formato incorrecto:")
                                 
-                                # Detectar emails con problemas
-                                invalid_emails = filtered_df[filtered_df['Email_Validado'].str.contains('ERROR')]
+                                # Mostrar tabla de DNIs inválidos
+                                st.dataframe(invalid_dnis[[dni_column, 'DNI_Validado']])
                                 
-                                if not invalid_emails.empty:
-                                    st.warning(f"⚠️ Se encontraron {len(invalid_emails)} correos con formato incorrecto:")
+                                # Ofrecer opciones al usuario
+                                dni_edit_option = st.radio(
+                                    "¿Qué deseas hacer con los DNIs inválidos?",
+                                    options=["Editar manualmente", "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)"],
+                                    index=1,
+                                    key="dni_edit_option_main"
+                                )
+                                
+                                if dni_edit_option == "Conservar valores originales (pueden ser carnets de extranjería u otros documentos válidos)":
+                                    # Conservar los valores originales para carnets de extranjería y otros documentos
+                                    st.info("ℹ️ Se conservarán los valores originales de los documentos de identidad")
+                                    for idx in invalid_dnis.index:
+                                        # Usar el valor original del documento como valor validado
+                                        original_value = filtered_df.loc[idx, dni_column]
+                                        filtered_df.loc[idx, 'DNI_Validado'] = original_value
                                     
-                                    # Mostrar tabla de emails inválidos
-                                    st.dataframe(invalid_emails[[email_column, 'Email_Validado']])
-                                    
+                                    # IMPORTANTE: Actualizar inmediatamente la sesión después de conservar valores
+                                    st.session_state.processed_data = filtered_df.copy()
+                                    # Marcar que se realizó esta acción
+                                    st.session_state.last_action = "conservar_originales"
+                                    st.success("✅ Todos los valores originales han sido conservados")
+                                else:
                                     # Ofrecer corrección manual
-                                    st.subheader("Corrección Manual de Correo")
+                                    st.subheader("Corrección Manual de DNI")
                                     
                                     # Seleccionar índice a corregir
-                                    index_options = invalid_emails.index.tolist()
+                                    index_options = invalid_dnis.index.tolist()
                                     index_to_fix = st.selectbox(
                                         "Selecciona el índice a corregir:", 
                                         index_options,
-                                        key="email_index_selector"
+                                        key="dni_index_selector"
                                     )
                                     
+                                    # Mostrar información del registro
+                                    current_value = filtered_df.loc[index_to_fix, dni_column]
+                                    st.info(f"DNI actual: {current_value}")
+                                    
+                                    # Si hay columnas de nombre, mostrar el nombre para mejor identificación
+                                    name_cols = [col for col in filtered_df.columns if 'nombre' in col.lower() or 'apellido' in col.lower()]
+                                    if name_cols:
+                                        name_values = [filtered_df.loc[index_to_fix, col] for col in name_cols]
+                                        st.info(f"Nombre: {' '.join(name_values)}")
+                                    
                                     # Valor actual y nuevo valor
-                                    current_value = filtered_df.loc[index_to_fix, email_column]
                                     new_value = st.text_input(
                                         "Nuevo valor:", 
                                         value=current_value,
-                                        key="email_value_input"
+                                        key="dni_value_input"
                                     )
                                     
-                                    if st.button("Actualizar Correo", key="update_email_btn"):
-                                        filtered_df.loc[index_to_fix, email_column] = new_value
-                                        filtered_df.loc[index_to_fix, 'Email_Validado'] = validate_email(new_value)
-                                        st.success(f"✅ Correo actualizado correctamente")
-                                else:
-                                    st.success("✅ Todos los correos tienen un formato válido")
+                                    # Ver una previsualización de la validación
+                                    valid_preview = standardize_dni(new_value)
+                                    if "ERROR" in valid_preview:
+                                        st.warning(f"⚠️ Validación: {valid_preview}")
+                                    else:
+                                        st.success(f"✅ Validación: {valid_preview}")
+                                    
+                                    if st.button("Actualizar DNI", key="update_dni_btn"):
+                                        # Usar la función específica para actualizar DNIs
+                                        filtered_df = handle_dni_update(filtered_df, index_to_fix, dni_column, new_value)
+                                        
+                                        # Actualizar la sesión (aunque ya lo hace la función handle_dni_update)
+                                        st.session_state.processed_data = filtered_df.copy()
+                                        
+                                        st.success(f"✅ DNI actualizado correctamente. El cambio se ha guardado en la sesión.")
+                                        
+                                        # Ofrecer continuar con otra edición o finalizar
+                                        if st.button("Continuar con otra edición", key="continue_edit"):
+                                            st.rerun()
+                                        
+                                        if st.button("Finalizar ediciones", key="finish_edit"):
+                                            # Marcamos explícitamente que se han terminado las ediciones
+                                            st.session_state.last_action = "ediciones_finalizadas"
+                                            st.success("✅ Ediciones completadas. Ahora puedes ordenar o exportar los datos.")
+                                    else:
+                                        st.warning("⚠️ Por favor, selecciona una opción para continuar o finalizar la edición")
+                            else:
+                                st.success("✅ Todos los DNIs tienen un formato válido")
+                            
+                            # Verificar duplicados
+                            duplicates = get_duplicated_dnis(filtered_df, dni_column)
+                            
+                            if not duplicates.empty:
+                                st.warning(f"⚠️ Se encontraron {len(duplicates)} DNIs duplicados:")
                                 
-                                # Verificar duplicados
-                                email_duplicates = filtered_df[filtered_df.duplicated(subset=[email_column], keep=False)]
+                                # Detectar columnas para mejor visualización
+                                display_columns = [dni_column, 'DNI_Validado']
                                 
-                                if not email_duplicates.empty:
-                                    st.warning(f"⚠️ Se encontraron {len(email_duplicates)} correos duplicados:")
-                                    st.dataframe(email_duplicates[[email_column, 'Email_Validado']])
-                                else:
-                                    st.success("✅ No se encontraron correos duplicados")
+                                # Añadir columnas relevantes para verificar si es la misma persona
+                                nombre_cols = [col for col in filtered_df.columns if 'nombre' in col.lower() or 'apellido' in col.lower()]
+                                if nombre_cols:
+                                    display_columns.extend(nombre_cols)
+                                
+                                # Añadir columna de email si existe
+                                email_cols = [col for col in filtered_df.columns if 'email' in col.lower() or 'correo' in col.lower()]
+                                if email_cols:
+                                    display_columns.extend(email_cols)
+                                
+                                # Añadir columna de área si existe
+                                area_cols = [col for col in filtered_df.columns if 'área' in col.lower() or 'area' in col.lower()]
+                                if area_cols:
+                                    display_columns.extend(area_cols)
+                                
+                                # Mostrar tabla de DNIs duplicados con información ampliada
+                                st.dataframe(duplicates[display_columns])
+                                
+                                st.info("ℹ️ Verifica si los duplicados corresponden a la misma persona aplicando a diferentes áreas o si son errores de datos.")
+                            else:
+                                st.success("✅ No se encontraron DNIs duplicados")
                 
-                # Filtrar por aprobados/rechazados
-                st.subheader("Filtrar Candidatos")
-                
-                # Detectar columna de filtro
-                filter_columns = [col for col in selected_columns if 'filtro' in col.lower() or 'pasa' in col.lower()]
-                
-                if filter_columns:
-                    filter_column = st.selectbox("Selecciona la columna de filtro", filter_columns)
+                # ---- VALIDACIÓN DE CORREO ELECTRÓNICO ----
+                with val_tab2:
+                    st.subheader("Validación de Correo Electrónico")
                     
-                    # Obtener valores únicos para mostrar opciones
-                    filter_values = filtered_df[filter_column].unique().tolist()
+                    # Detectar columna de email
+                    email_columns = [col for col in selected_columns if 'email' in col.lower() or 'correo' in col.lower()]
                     
-                    # Filtrar por valor seleccionado
-                    filter_value = st.selectbox(
-                        "Filtrar por valor:", 
-                        options=["Todos"] + filter_values
+                    if not email_columns:
+                        st.warning("⚠️ No se detectó ninguna columna de correo electrónico. Por favor, verifica la selección de columnas.")
+                    else:
+                        email_column = st.selectbox("Selecciona la columna de correo electrónico", email_columns)
+                        
+                        # Validar y estandarizar emails
+                        with st.spinner("Procesando correos electrónicos..."):
+                            filtered_df['Email_Validado'] = filtered_df[email_column].apply(validate_email)
+                            
+                            # Detectar emails con problemas
+                            invalid_emails = filtered_df[filtered_df['Email_Validado'].str.contains('ERROR')]
+                            
+                            if not invalid_emails.empty:
+                                st.warning(f"⚠️ Se encontraron {len(invalid_emails)} correos con formato incorrecto:")
+                                
+                                # Mostrar tabla de emails inválidos
+                                st.dataframe(invalid_emails[[email_column, 'Email_Validado']])
+                                
+                                # Ofrecer corrección manual
+                                st.subheader("Corrección Manual de Correo")
+                                
+                                # Seleccionar índice a corregir
+                                index_options = invalid_emails.index.tolist()
+                                index_to_fix = st.selectbox(
+                                    "Selecciona el índice a corregir:", 
+                                    index_options,
+                                    key="email_index_selector"
+                                )
+                                
+                                # Valor actual y nuevo valor
+                                current_value = filtered_df.loc[index_to_fix, email_column]
+                                new_value = st.text_input(
+                                    "Nuevo valor:", 
+                                    value=current_value,
+                                    key="email_value_input"
+                                )
+                                
+                                if st.button("Actualizar Correo", key="update_email_btn"):
+                                    filtered_df.loc[index_to_fix, email_column] = new_value
+                                    filtered_df.loc[index_to_fix, 'Email_Validado'] = validate_email(new_value)
+                                    st.success(f"✅ Correo actualizado correctamente")
+                            else:
+                                st.success("✅ Todos los correos tienen un formato válido")
+                            
+                            # Verificar duplicados
+                            email_duplicates = filtered_df[filtered_df.duplicated(subset=[email_column], keep=False)]
+                            
+                            if not email_duplicates.empty:
+                                st.warning(f"⚠️ Se encontraron {len(email_duplicates)} correos duplicados:")
+                                st.dataframe(email_duplicates[[email_column, 'Email_Validado']])
+                            else:
+                                st.success("✅ No se encontraron correos duplicados")
+            
+            # Filtrar por aprobados/rechazados
+            st.subheader("Filtrar Candidatos")
+            
+            # Detectar columna de filtro
+            filter_columns = [col for col in selected_columns if 'filtro' in col.lower() or 'pasa' in col.lower()]
+            
+            if filter_columns:
+                filter_column = st.selectbox("Selecciona la columna de filtro", filter_columns)
+                
+                # Obtener valores únicos para mostrar opciones
+                filter_values = filtered_df[filter_column].unique().tolist()
+                
+                # Filtrar por valor seleccionado
+                filter_value = st.selectbox(
+                    "Filtrar por valor:", 
+                    options=["Todos"] + filter_values
+                )
+                
+                if filter_value != "Todos":
+                    filtered_df = filtered_df[filtered_df[filter_column] == filter_value]
+                    st.info(f"📊 Registros después del filtro: {len(filtered_df)}")
+            
+            # Guardar el DataFrame procesado en la sesión
+            st.session_state.processed_data = filtered_df
+            
+            # --- NUEVA SECCIÓN: ORDENAMIENTO POR ÁREA ---
+            st.subheader("Ordenar por Área")
+            
+            # Buscar columnas potenciales de área
+            area_columns = [col for col in filtered_df.columns if 'área' in col.lower() or 'area' in col.lower() or 'interesado' in col.lower()]
+            
+            if area_columns:
+                # Permitir seleccionar columna de área
+                sort_area_column = st.selectbox(
+                    "Selecciona la columna de área para ordenar:",
+                    options=area_columns,
+                    key="sort_area_column"
+                )
+                
+                # Opción para ordenar
+                if st.button("Ordenar por Área", key="sort_by_area_btn"):
+                    with st.spinner("Ordenando datos por área..."):
+                        # Usar la función específica para ordenamiento
+                        filtered_df = handle_sort_dataframe(
+                            filtered_df, 
+                            sort_column=sort_area_column, 
+                            ascending=True, 
+                            sort_name="área"
+                        )
+                        
+                        # Mostrar mensaje adicional aunque ya lo hace la función
+                        st.success(f"✅ Datos ordenados por área. El ordenamiento se ha guardado en la sesión.")
+                        
+                        # Mostrar un mensaje de que estos cambios permanecerán
+                        st.info("ℹ️ Este ordenamiento se mantendrá cuando exportes los datos.")
+                        
+                        # Ofrecer recargar para ver el resultado
+                        if st.button("Ver resultado ordenado", key="view_sorted_result"):
+                            st.rerun()
+            else:
+                st.info("ℹ️ No se detectaron columnas de área para ordenar los datos")
+            
+            # Opción adicional para ordenar por cualquier columna
+            st.subheader("Ordenar por Otra Columna")
+            
+            # Seleccionar columna para ordenar
+            sort_column = st.selectbox(
+                "Selecciona una columna para ordenar:",
+                options=filtered_df.columns.tolist(),
+                key="sort_column"
+            )
+            
+            # Dirección del ordenamiento
+            sort_direction = st.radio(
+                "Dirección:",
+                options=["Ascendente", "Descendente"],
+                key="sort_direction"
+            )
+            
+            if st.button("Ordenar Datos", key="sort_data_btn"):
+                with st.spinner("Ordenando datos..."):
+                    # Determinar dirección del ordenamiento
+                    ascending = sort_direction == "Ascendente"
+                    
+                    # Usar la función específica para ordenamiento
+                    filtered_df = handle_sort_dataframe(
+                        filtered_df, 
+                        sort_column=sort_column, 
+                        ascending=ascending,
+                        sort_name=sort_direction.lower()
                     )
                     
-                    if filter_value != "Todos":
-                        filtered_df = filtered_df[filtered_df[filter_column] == filter_value]
-                        st.info(f"📊 Registros después del filtro: {len(filtered_df)}")
-                
-                # Guardar el DataFrame procesado en la sesión
-                st.session_state.processed_data = filtered_df
-                
-                # --- NUEVA SECCIÓN: ORDENAMIENTO POR ÁREA ---
-                st.subheader("Ordenar por Área")
-                
-                # Buscar columnas potenciales de área
-                area_columns = [col for col in filtered_df.columns if 'área' in col.lower() or 'area' in col.lower() or 'interesado' in col.lower()]
-                
-                if area_columns:
-                    # Permitir seleccionar columna de área
-                    sort_area_column = st.selectbox(
-                        "Selecciona la columna de área para ordenar:",
-                        options=area_columns,
-                        key="sort_area_column"
-                    )
+                    # Mostrar mensaje adicional aunque ya lo hace la función
+                    st.success(f"✅ Datos ordenados por '{sort_column}' ({sort_direction.lower()}). El ordenamiento se ha guardado en la sesión.")
                     
-                    # Opción para ordenar
-                    if st.button("Ordenar por Área", key="sort_by_area_btn"):
-                        with st.spinner("Ordenando datos por área..."):
-                            # Ordenar DataFrame
-                            filtered_df = filtered_df.sort_values(by=sort_area_column)
-                            
-                            # Actualizar DataFrame en sesión
-                            st.session_state.processed_data = filtered_df
-                            
-                            st.success("✅ Datos ordenados por área")
-                else:
-                    st.info("ℹ️ No se detectaron columnas de área para ordenar los datos")
-                
-                # Opción adicional para ordenar por cualquier columna
-                st.subheader("Ordenar por Otra Columna")
-                
-                # Seleccionar columna para ordenar
-                sort_column = st.selectbox(
-                    "Selecciona una columna para ordenar:",
-                    options=filtered_df.columns.tolist(),
-                    key="sort_column"
-                )
-                
-                # Dirección del ordenamiento
-                sort_direction = st.radio(
-                    "Dirección:",
-                    options=["Ascendente", "Descendente"],
-                    key="sort_direction"
-                )
-                
-                if st.button("Ordenar Datos", key="sort_data_btn"):
-                    with st.spinner("Ordenando datos..."):
-                        # Ordenar DataFrame
-                        ascending = sort_direction == "Ascendente"
-                        filtered_df = filtered_df.sort_values(by=sort_column, ascending=ascending)
-                        
-                        # Actualizar DataFrame en sesión
-                        st.session_state.processed_data = filtered_df
-                        
-                        st.success(f"✅ Datos ordenados por '{sort_column}' ({sort_direction.lower()})")
-                
-                # Mostrar vista previa
-                st.subheader("Vista Previa de Datos Procesados")
-                st.dataframe(filtered_df.head(10))
-                
-                # Botón para exportar datos procesados directamente desde el Paso 1
-                st.subheader("Exportar Datos Procesados (Paso 1)")
-                
-                export_format = st.radio(
-                    "Formato de exportación:",
-                    options=["Excel (.xlsx)", "CSV (.csv)"],
-                    key="export_format_step1"
-                )
-                
-                include_validation_step1 = st.checkbox(
-                    "Incluir columnas de validación (DNI_Validado, etc.)", 
-                    value=True,
-                    key="include_validation_step1"
-                )
-                
-                # Crear nombre de archivo
-                timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-                default_filename = f"yakus_procesados_paso1_{timestamp}"
-                export_filename_step1 = st.text_input("Nombre del archivo:", value=default_filename, key="export_filename_step1")
-                
-                if st.button("Exportar Datos del Paso 1"):
-                    # Eliminar columnas de validación si no se desean incluir
-                    export_df = filtered_df.copy()
+                    # Mostrar un mensaje de que estos cambios permanecerán
+                    st.info("ℹ️ Este ordenamiento se mantendrá cuando exportes los datos.")
                     
+                    # Ofrecer recargar para ver el resultado
+                    if st.button("Ver resultado ordenado", key="view_custom_sorted"):
+                        st.rerun()
+            
+            # Mostrar vista previa
+            st.subheader("Vista Previa de Datos Procesados")
+            st.dataframe(filtered_df.head(10))
+            
+            # Botón para exportar datos procesados directamente desde el Paso 1
+            st.subheader("Exportar Datos Procesados (Paso 1)")
+            
+            export_format = st.radio(
+                "Formato de exportación:",
+                options=["Excel (.xlsx)", "CSV (.csv)"],
+                key="export_format_step1"
+            )
+            
+            include_validation_step1 = st.checkbox(
+                "Incluir columnas de validación (DNI_Validado, etc.)", 
+                value=True,
+                key="include_validation_step1"
+            )
+            
+            # Crear nombre de archivo
+            timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"yakus_procesados_paso1_{timestamp}"
+            export_filename_step1 = st.text_input("Nombre del archivo:", value=default_filename, key="export_filename_step1")
+            
+            if st.button("Exportar Datos del Paso 1"):
+                # Verificar que tenemos datos procesados en la sesión
+                if st.session_state.processed_data is not None:
+                    # Hacer una copia explícita para la exportación
+                    export_df = st.session_state.processed_data.copy()
+                    
+                    # Mostrar información detallada sobre los datos a exportar
+                    st.subheader("Verificación de Datos a Exportar")
+                    
+                    # Información sobre el estado de los datos
+                    st.info(f"📊 Exportando {len(export_df)} registros con todas las modificaciones aplicadas")
+                    
+                    if st.session_state.last_action:
+                        st.info(f"🔄 Última acción realizada: {st.session_state.last_action}")
+                    
+                    # Mostrar los 5 primeros registros para verificación
+                    st.write("Muestra de los datos que se exportarán:")
+                    st.dataframe(export_df.head(5))
+                    
+                    # Buscar columna de DNI para verificar ediciones
+                    if dni_column in export_df.columns:
+                        st.write(f"Verificando columna de DNI '{dni_column}':")
+                        st.write(export_df[dni_column].head(10).tolist())
+                    
+                    # Procesar para la exportación
                     # Asegurarnos que todas las columnas de texto sean de tipo string
                     for col in export_df.select_dtypes(include=['object']).columns:
                         export_df[col] = export_df[col].astype(str)
@@ -401,24 +510,42 @@ def load_and_clean_tab():
                         if validation_cols:
                             export_df = export_df.drop(columns=validation_cols)
                     
-                    # Exportar según formato
-                    if export_format == "Excel (.xlsx)":
-                        output = BytesIO()
-                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                            export_df.to_excel(writer, sheet_name='Datos', index=False)
+                    # Confirmar antes de exportar
+                    if st.checkbox("Confirmar exportación", value=True, key="confirm_export"):
+                        # Exportar según formato
+                        if export_format == "Excel (.xlsx)":
+                            output = BytesIO()
+                            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                                export_df.to_excel(writer, sheet_name='Datos', index=False)
+                            
+                            output.seek(0)
+                            b64 = base64.b64encode(output.read()).decode()
+                            href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{export_filename_step1}.xlsx">📥 Descargar archivo Excel</a>'
+                            st.markdown(href, unsafe_allow_html=True)
                         
-                        output.seek(0)
-                        b64 = base64.b64encode(output.read()).decode()
-                        href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{export_filename_step1}.xlsx">📥 Descargar archivo Excel</a>'
-                        st.markdown(href, unsafe_allow_html=True)
+                        else:  # CSV
+                            csv = export_df.to_csv(index=False)
+                            b64 = base64.b64encode(csv.encode()).decode()
+                            href = f'<a href="data:text/csv;base64,{b64}" download="{export_filename_step1}.csv">📥 Descargar archivo CSV</a>'
+                            st.markdown(href, unsafe_allow_html=True)
+                        
+                        st.success(f"✅ Archivo '{export_filename_step1}' listo para descargar")
+                    else:
+                        st.warning("⚠️ Por favor confirma la exportación para descargar el archivo")
+                else:
+                    st.error("❌ No hay datos procesados en la sesión para exportar")
                     
-                    else:  # CSV
-                        csv = export_df.to_csv(index=False)
-                        b64 = base64.b64encode(csv.encode()).decode()
-                        href = f'<a href="data:text/csv;base64,{b64}" download="{export_filename_step1}.csv">📥 Descargar archivo CSV</a>'
-                        st.markdown(href, unsafe_allow_html=True)
-                    
-                    st.success(f"✅ Archivo '{export_filename_step1}' listo para descargar")
+                    # Si tenemos filtered_df local pero no en la sesión
+                    if 'filtered_df' in locals():
+                        st.warning("Se encontró un DataFrame local pero no está en la sesión. Intentando recuperar...")
+                        
+                        # Intentar guardar el DataFrame local en la sesión
+                        st.session_state.processed_data = filtered_df.copy()
+                        
+                        st.info("DataFrame guardado en la sesión. Por favor, intenta exportar nuevamente.")
+                        
+                        if st.button("Intentar nuevamente", key="retry_export"):
+                            st.rerun()
         
         except Exception as e:
             st.error(f"❌ Error al procesar el archivo: {str(e)}")
@@ -664,9 +791,11 @@ def selection_by_area_tab():
                                 
                                 # Botón para aplicar cambio
                                 if st.button("Actualizar", key=f"update_btn_{idx}"):
-                                    selection_df.loc[idx, selection_dni_col] = validated_dni if "ERROR" not in validated_dni else new_dni
-                                    selection_df.loc[idx, 'DNI_Validado'] = validated_dni
-                                    st.success(f"✅ DNI actualizado")
+                                    # Guardar el nuevo valor tanto en la columna original como en la validada
+                                    new_valid_value = validated_dni if "ERROR" not in validated_dni else new_dni
+                                    selection_df.loc[idx, selection_dni_col] = new_valid_value
+                                    selection_df.loc[idx, 'DNI_Validado'] = new_valid_value
+                                    st.success(f"✅ DNI actualizado en ambas columnas")
                                     # Reemplazar experimental_rerun por rerun
                                     st.rerun()
                             
@@ -742,8 +871,11 @@ def selection_by_area_tab():
                             if "Actualizando curso" in line or "DNIs inválidos" in line:
                                 st.warning(line)
                         
-                        # Guardar resultado en sesión
+                        # Guardar resultado en sesión - asegurarse de que se guarda correctamente
                         st.session_state.export_data = filtered_df
+                        
+                        # Asegurarse de actualizar processed_data también para mantener la coherencia
+                        st.session_state.processed_data = filtered_df
                         
                         # Mostrar resultados
                         st.success(f"✅ Filtrado completado. Se conservaron {len(filtered_df)} registros")
@@ -779,16 +911,22 @@ def export_tab():
     data_to_export = None
     
     if st.session_state.export_data is not None:
-        data_to_export = st.session_state.export_data
+        data_to_export = st.session_state.export_data.copy()  # Hacer una copia para no modificar el original
         st.success("✅ Se exportarán los datos filtrados por área")
     
     elif st.session_state.processed_data is not None:
-        data_to_export = st.session_state.processed_data
+        data_to_export = st.session_state.processed_data.copy()  # Hacer una copia para no modificar el original
         st.info("ℹ️ Se exportarán los datos procesados (sin filtrado por área)")
+        # Verificación adicional para mostrar información sobre los datos a exportar
+        st.info(f"📊 Registros a exportar: {len(data_to_export)} | Incluye todas las ediciones realizadas")
     
     else:
         st.warning("⚠️ No hay datos para exportar. Procesa los datos en las pestañas anteriores.")
         return
+    
+    # Mostrar una vista previa para confirmar que los datos están ordenados correctamente
+    with st.expander("Verificar datos a exportar", expanded=False):
+        st.dataframe(data_to_export)
     
     # Opciones de exportación
     st.subheader("Opciones de Exportación")
@@ -811,6 +949,9 @@ def export_tab():
     if st.button("Exportar Datos"):
         # Eliminar columnas de validación si no se desean incluir
         export_df = data_to_export.copy()
+        
+        # Verificación para confirmar que se están exportando los datos correctos
+        st.success(f"✅ Exportando {len(export_df)} registros con todas las ediciones aplicadas")
         
         # Asegurarnos que todas las columnas de texto sean de tipo string para evitar problemas con PyArrow
         for col in export_df.select_dtypes(include=['object']).columns:
@@ -858,4 +999,70 @@ def export_tab():
             
             st.subheader("Distribución por Área")
             for area, count in area_counts.items():
-                st.write(f"- {area}: {count} yakus") 
+                st.write(f"- {area}: {count} yakus")
+
+# Agregamos una nueva función para el manejo específico de ediciones de DNI
+def handle_dni_update(filtered_df, index_to_fix, dni_column, new_value):
+    """
+    Función específica para manejar la actualización de DNIs y asegurar que se guarde en la sesión.
+    
+    Args:
+        filtered_df (pd.DataFrame): DataFrame con los datos
+        index_to_fix (int): Índice del registro a modificar
+        dni_column (str): Nombre de la columna de DNI
+        new_value (str): Nuevo valor de DNI
+        
+    Returns:
+        pd.DataFrame: DataFrame actualizado
+    """
+    # Guardar el valor actual para mostrar el cambio
+    current_value = filtered_df.loc[index_to_fix, dni_column]
+    
+    # Aplicar la estandarización solo si es necesario
+    new_valid_value = standardize_dni(new_value)
+    if "ERROR" in new_valid_value:
+        new_valid_value = new_value  # Si sigue siendo inválido, usar el valor ingresado
+    
+    # Actualizar tanto la columna original como la validada
+    filtered_df.loc[index_to_fix, dni_column] = new_valid_value
+    filtered_df.loc[index_to_fix, 'DNI_Validado'] = new_valid_value
+    
+    # Guardar cambios en la sesión inmediatamente
+    st.session_state.processed_data = filtered_df.copy()
+    
+    # Guardar una marca de que se ha realizado una edición
+    st.session_state.last_action = f"edit_dni_{index_to_fix}"
+    
+    # Mostrar información del cambio
+    st.info(f"🔄 DNI actualizado: '{current_value}' → '{new_valid_value}'")
+    
+    return filtered_df
+
+# Agregar función para manejar el ordenamiento
+def handle_sort_dataframe(df, sort_column, ascending=True, sort_name=""):
+    """
+    Función específica para manejar el ordenamiento y asegurar que se guarde en la sesión.
+    
+    Args:
+        df (pd.DataFrame): DataFrame a ordenar
+        sort_column (str): Columna por la que ordenar
+        ascending (bool): Si el orden es ascendente o descendente
+        sort_name (str): Nombre descriptivo del tipo de ordenamiento
+        
+    Returns:
+        pd.DataFrame: DataFrame ordenado
+    """
+    # Ordenar el DataFrame
+    df_sorted = df.sort_values(by=sort_column, ascending=ascending)
+    
+    # Guardar inmediatamente en la sesión
+    st.session_state.processed_data = df_sorted.copy()
+    
+    # Guardar una marca de que se ha realizado un ordenamiento
+    st.session_state.last_action = f"sort_{sort_column}"
+    
+    # Información descriptiva
+    direction = "ascendente" if ascending else "descendente"
+    st.info(f"📊 Ordenando {len(df)} registros por '{sort_column}' ({direction})")
+    
+    return df_sorted 
