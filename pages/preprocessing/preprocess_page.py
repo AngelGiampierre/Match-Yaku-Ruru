@@ -886,17 +886,177 @@ def selection_by_area_tab():
                         
                         st.info(f"📊 Área '{selected_area}': {filtered_area_count} de {original_area_count} yakus conservados")
                         
-                        # Mostrar DNIs no encontrados
+                        # Mostrar DNIs no encontrados con más detalle
                         if not_found_dnis:
-                            st.warning(f"⚠️ {len(not_found_dnis)} DNIs del archivo de selección no se encontraron en el área '{selected_area}':")
-                            st.write(not_found_dnis)
+                            st.warning(f"⚠️ {len(not_found_dnis)} DNIs del archivo de selección no se encontraron en el área '{selected_area}'")
+                            
+                            # Crear DataFrame con información de los DNIs no encontrados para mejor visualización
+                            not_found_info = []
+                            
+                            for dni in not_found_dnis:
+                                # Buscar información en el archivo de selección para identificar quién es
+                                selection_rows = selection_df[selection_df[selection_dni_col] == dni]
+                                
+                                info = {"DNI": dni}
+                                
+                                # Añadir información adicional si está disponible
+                                nombre_cols = [col for col in selection_df.columns if 'nombre' in col.lower() or 'apellido' in col.lower()]
+                                
+                                if not selection_rows.empty:
+                                    if nombre_cols:
+                                        # Concatenar nombres/apellidos
+                                        nombres = []
+                                        for col in nombre_cols:
+                                            if col in selection_rows.columns:
+                                                nombres.append(str(selection_rows[col].iloc[0]))
+                                        info["Nombre"] = " ".join(nombres)
+                                    
+                                    # Añadir más información útil si existe
+                                    for col_type, pattern in [
+                                        ("Correo", ['correo', 'email']),
+                                        ("Teléfono", ['telefono', 'teléfono', 'celular']),
+                                        ("Curso", ['curso', 'taller', 'especialidad'])
+                                    ]:
+                                        cols = [col for col in selection_rows.columns if any(p in col.lower() for p in pattern)]
+                                        if cols:
+                                            info[col_type] = str(selection_rows[cols[0]].iloc[0])
+                                
+                                not_found_info.append(info)
+                            
+                            # Crear DataFrame para mostrar
+                            not_found_df = pd.DataFrame(not_found_info)
+                            
+                            # Mostrar tabla de no encontrados
+                            st.subheader("Detalles de DNIs no encontrados")
+                            st.dataframe(not_found_df)
+                            
+                            # Sección para buscar en todas las áreas
+                            st.subheader("Buscar en todas las áreas")
+                            st.info("Verifica si estos yakus existen en otras áreas")
+                            
+                            # Permitir seleccionar un DNI para buscar
+                            dni_to_search = st.selectbox(
+                                "Selecciona un DNI para buscar en todas las áreas:",
+                                options=not_found_dnis,
+                                key="dni_to_search"
+                            )
+                            
+                            if st.button("Buscar en todas las áreas", key="search_all_areas"):
+                                # Buscar el DNI en todo el DataFrame principal
+                                all_matches = []
+                                
+                                # Buscar en la columna validada si existe
+                                if 'DNI_Validado' in df.columns:
+                                    matches_validated = df[df['DNI_Validado'] == dni_to_search]
+                                    if not matches_validated.empty:
+                                        all_matches.append(matches_validated)
+                                
+                                # Buscar en la columna original
+                                matches_original = df[df[dni_column] == dni_to_search]
+                                if not matches_original.empty:
+                                    # Añadir solo si no duplicamos las filas
+                                    if not all_matches:
+                                        all_matches.append(matches_original)
+                                    else:
+                                        new_indices = set(matches_original.index) - set(all_matches[0].index)
+                                        if new_indices:
+                                            all_matches.append(matches_original.loc[list(new_indices)])
+                                
+                                # Buscar aproximado por si hay problemas de formato
+                                if not all_matches:
+                                    # Intentar buscar sin espacios, eliminando "DNI", etc.
+                                    clean_dni = re.sub(r'[^0-9A-Za-z]', '', dni_to_search)
+                                    for idx, row in df.iterrows():
+                                        row_dni = str(row[dni_column])
+                                        row_clean = re.sub(r'[^0-9A-Za-z]', '', row_dni)
+                                        if clean_dni in row_clean:
+                                            all_matches.append(df.loc[[idx]])
+                                
+                                # Combinar todos los resultados
+                                if all_matches:
+                                    combined_matches = pd.concat(all_matches).drop_duplicates()
+                                    
+                                    st.success(f"✅ Se encontraron {len(combined_matches)} coincidencias en la base de datos")
+                                    
+                                    # Mostrar áreas donde se encontró
+                                    if area_column in combined_matches.columns:
+                                        areas_found = combined_matches[area_column].unique()
+                                        st.info(f"📌 Áreas donde se encontró: {', '.join(areas_found)}")
+                                    
+                                    # Mostrar los resultados completos
+                                    st.write("Resultados encontrados:")
+                                    st.dataframe(combined_matches)
+                                    
+                                    # Opción para añadir este registro al área seleccionada
+                                    if st.button("Añadir este registro al área seleccionada", key="add_to_area"):
+                                        # Crear una copia del DataFrame principal
+                                        modified_df = df.copy()
+                                        
+                                        # Para cada fila encontrada, cambiar el área
+                                        for idx in combined_matches.index:
+                                            # Cambiar el área a la seleccionada
+                                            modified_df.loc[idx, area_column] = selected_area
+                                        
+                                        # Volver a filtrar con el DataFrame modificado
+                                        filtered_df_new, not_found_dnis_new = filter_by_area_and_selection(
+                                            modified_df, 
+                                            selection_df, 
+                                            area_column, 
+                                            selection_dni_col,
+                                            selected_area
+                                        )
+                                        
+                                        # Actualizar los resultados en la sesión
+                                        st.session_state.export_data = filtered_df_new
+                                        st.session_state.processed_data = filtered_df_new
+                                        
+                                        st.success("✅ Registro añadido al área seleccionada. Vuelve a filtrar para ver los resultados actualizados.")
+                                        
+                                        # Sugerir refiltrar
+                                        if st.button("Volver a filtrar", key="refilter_btn"):
+                                            st.rerun()
+                                else:
+                                    st.warning(f"⚠️ No se encontró ninguna coincidencia para el DNI {dni_to_search} en toda la base de datos.")
+                                    
+                                    # Opción para buscar por nombre si tenemos esa información
+                                    nombre_to_search = ""
+                                    for info in not_found_info:
+                                        if info["DNI"] == dni_to_search and "Nombre" in info:
+                                            nombre_to_search = info["Nombre"]
+                                            break
+                                    
+                                    if nombre_to_search:
+                                        st.subheader("Buscar por nombre")
+                                        st.info(f"Intentaremos buscar por el nombre: {nombre_to_search}")
+                                        
+                                        # Separar palabras del nombre para buscar coincidencias parciales
+                                        nombre_parts = nombre_to_search.lower().split()
+                                        
+                                        if st.button("Buscar por nombre", key="search_by_name"):
+                                            # Buscar en todas las columnas de nombre
+                                            nombre_cols = [col for col in df.columns if 'nombre' in col.lower() or 'apellido' in col.lower()]
+                                            
+                                            matches_by_name = []
+                                            for col in nombre_cols:
+                                                for part in nombre_parts:
+                                                    if len(part) > 3:  # Solo usar partes significativas
+                                                        # Buscar coincidencias parciales
+                                                        matches = df[df[col].str.lower().str.contains(part, na=False)]
+                                                        if not matches.empty:
+                                                            matches_by_name.append(matches)
+                                            
+                                            if matches_by_name:
+                                                # Combinar resultados
+                                                combined_name_matches = pd.concat(matches_by_name).drop_duplicates()
+                                                
+                                                st.success(f"✅ Se encontraron {len(combined_name_matches)} posibles coincidencias por nombre")
+                                                st.dataframe(combined_name_matches)
+                                            else:
+                                                st.error("❌ No se encontraron coincidencias por nombre.")
                         
                         # Mostrar vista previa
                         st.subheader("Vista Previa de Datos Filtrados")
                         st.dataframe(filtered_df.head(10))
-                        
-                        # Botón para continuar
-                        st.success("✅ Datos filtrados correctamente. Puedes continuar a la pestaña de exportación.")
                 except Exception as e:
                     st.error(f"❌ Error al filtrar por área: {str(e)}")
         
