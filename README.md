@@ -23,7 +23,7 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 │   │   └── match_page.py          # Página principal de Match
 │   ├── preprocessing/             # Pre-procesamiento
 │   │   ├── __init__.py
-│   │   └── preprocess_page.py     # Página de preprocesamiento
+│   │   └── preprocess_page.py     # Página de preprocesamiento avanzado
 │   └── email/                     # Envío de emails
 │       ├── __init__.py
 │       └── email_page.py          # Página de envío de emails
@@ -57,7 +57,14 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 
 ### Pages/Preprocessing
 
-- **preprocess_page.py**: Implementa la funcionalidad para limpiar y preparar datos antes del match.
+- **preprocess_page.py**: Implementa la funcionalidad para limpiar y preparar datos antes del match, con características avanzadas:
+  - Edición y validación de DNIs/Pasaportes
+  - Edición y validación de correos electrónicos
+  - Ordenamiento de datos por área u otras columnas
+  - Filtrado por área específica con lista de seleccionados
+  - Detección y gestión de DNIs no encontrados en un área
+  - Búsqueda de yakus por DNI o nombre en toda la base de datos
+  - Exportación de datos procesados con mantenimiento de ediciones y ordenamiento
 
 ### Pages/Email
 
@@ -66,7 +73,7 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 ### Utils
 
 - **match_algorithm.py**: Contiene las clases `Yaku`, `Ruru`, `MatchMaker` y `ReportGenerator` que implementan el algoritmo de matching.
-- **data_processors.py**: Funciones utilitarias para el procesamiento de datos.
+- **data_processors.py**: Funciones utilitarias para el procesamiento de datos (estandarización de DNIs, validación de emails, etc.).
 - **email_sender.py**: Implementa la funcionalidad para enviar emails.
 
 ## Guía para el desarrollo por funcionalidad
@@ -91,6 +98,16 @@ Para trabajar de forma independiente en cada funcionalidad, estos son los archiv
 1. Para desarrollar esta funcionalidad:
    - `pages/preprocessing/preprocess_page.py`
    - `utils/data_processors.py`
+   
+2. Características principales de preprocesamiento:
+   - **Carga y limpieza de datos**: Subir archivos Excel/CSV y detectar automáticamente columnas importantes.
+   - **Edición de DNIs**: Corregir y estandarizar números de documento con persistencia de cambios.
+   - **Validación de correos**: Detectar y corregir problemas con direcciones de correo electrónico.
+   - **Ordenamiento inteligente**: Ordenar datos por área u otras columnas manteniendo el orden en la exportación.
+   - **Filtrado por área y selección**: Filtrar yakus específicos por área usando una lista de seleccionados.
+   - **Gestión de DNIs no encontrados**: Identificar y gestionar yakus que no se encuentran en un área específica.
+   - **Búsqueda avanzada**: Localizar yakus por DNI o nombre en toda la base de datos.
+   - **Asignación manual de área**: Reasignar yakus a áreas específicas cuando es necesario.
 
 ### Funcionalidad de Emails
 
@@ -118,10 +135,32 @@ streamlit run app.py
 
 ## Flujo de trabajo típico
 
-1. Preprocesar los datos de Yakus y Rurus para asegurar su consistencia
-2. Cargar los datos en la funcionalidad de Match
-3. Ejecutar el algoritmo para encontrar las mejores asignaciones
-4. Enviar emails a los participantes con sus asignaciones
+1. **Preprocesar los datos** de Yakus y Rurus:
+   - Cargar archivo de datos de yakus
+   - Seleccionar columnas relevantes
+   - Limpiar y estandarizar DNIs/Pasaportes y correos
+   - Ordenar datos por área u otras columnas de interés
+   - Filtrar por área usando lista de seleccionados
+   - Gestionar casos especiales de DNIs no encontrados
+   - Exportar datos limpios y ordenados
+
+2. **Cargar los datos** en la funcionalidad de Match
+3. **Ejecutar el algoritmo** para encontrar las mejores asignaciones
+4. **Enviar emails** a los participantes con sus asignaciones
+
+## Funcionalidades avanzadas de preprocesamiento
+
+### Gestión de DNIs y ordenamiento
+- Editar manualmente DNIs con formato incorrecto
+- Conservar documentos especiales (carnets de extranjería, etc.)
+- Ordenar por área o cualquier columna con persistencia del ordenamiento
+- Exportación que mantiene todas las ediciones y ordenamiento realizados
+
+### Gestión de DNIs no encontrados
+- Ver la lista detallada de yakus no encontrados en un área específica
+- Buscar estos yakus en toda la base de datos por DNI
+- Buscar por nombre cuando no se encuentra el DNI
+- Reasignar yakus a otras áreas cuando sea necesario
 
 ## Dependencias
 
