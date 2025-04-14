@@ -7,7 +7,7 @@ from components.sidebar import sidebar_navigation
 
 # Importar páginas
 from pages.match.match_page import match_main
-from pages.preprocessing.preprocess_page import preprocess_main
+from pages.preprocessing.preprocess_main import preprocess_main
 from pages.email.email_page import email_main
 
 # Configuración de la página

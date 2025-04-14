@@ -21,9 +21,19 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 │   │   ├── data_loader.py         # Carga de datos y mapeo
 │   │   ├── results.py             # Visualización de resultados
 │   │   └── match_page.py          # Página principal de Match
-│   ├── preprocessing/             # Pre-procesamiento
+│   ├── preprocessing/             # Pre-procesamiento (estructura modular)
 │   │   ├── __init__.py
-│   │   └── preprocess_page.py     # Página de preprocesamiento avanzado
+│   │   ├── preprocess_main.py     # Punto de entrada del preprocesamiento
+│   │   ├── tabs/                  # Tabs individuales
+│   │   │   ├── __init__.py
+│   │   │   ├── load_clean_tab.py  # Tab de carga y limpieza
+│   │   │   ├── selection_area_tab.py # Tab de selección por área
+│   │   │   └── export_tab.py      # Tab de exportación
+│   │   ├── components/            # Componentes reutilizables
+│   │   │   ├── __init__.py
+│   │   │   ├── data_validators.py # Validadores de datos (DNI, email)
+│   │   │   ├── data_handlers.py   # Manejo de datos
+│   │   │   └── file_handlers.py   # Manejo de archivos
 │   └── email/                     # Envío de emails
 │       ├── __init__.py
 │       └── email_page.py          # Página de envío de emails
@@ -55,16 +65,34 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 - **data_loader.py**: Maneja la carga y mapeo de datos de Yakus y Rurus desde archivos Excel.
 - **results.py**: Muestra los resultados del algoritmo de match y permite exportarlos.
 
-### Pages/Preprocessing
+### Pages/Preprocessing (Nueva estructura modular)
 
-- **preprocess_page.py**: Implementa la funcionalidad para limpiar y preparar datos antes del match, con características avanzadas:
-  - Edición y validación de DNIs/Pasaportes
-  - Edición y validación de correos electrónicos
-  - Ordenamiento de datos por área u otras columnas
-  - Filtrado por área específica con lista de seleccionados
-  - Detección y gestión de DNIs no encontrados en un área
-  - Búsqueda de yakus por DNI o nombre en toda la base de datos
-  - Exportación de datos procesados con mantenimiento de ediciones y ordenamiento
+- **preprocess_main.py**: Punto de entrada principal de la funcionalidad de preprocesamiento.
+  
+- **tabs/**:
+  - **load_clean_tab.py**: Implementa el tab para carga y limpieza de datos con funciones para:
+    - Detección automática de columnas importantes
+    - Validación de DNI/Pasaporte
+    - Validación de email
+    - Ordenamiento de datos
+    - Exportación rápida
+  
+  - **selection_area_tab.py**: Implementa el tab para filtrado por área con funciones para:
+    - Cargar archivo de selección
+    - Validar DNIs en selección
+    - Filtrado por área específica
+    - Gestión de DNIs no encontrados
+    - Búsqueda en todas las áreas
+    
+  - **export_tab.py**: Implementa el tab para exportación de datos procesados con:
+    - Exportación a Excel/CSV
+    - Resumen de datos
+    - Distribución por área
+
+- **components/**:
+  - **data_validators.py**: Componentes para validar datos como DNI y correo electrónico.
+  - **data_handlers.py**: Funciones para manejar operaciones con datos como actualización de DNI y ordenamiento.
+  - **file_handlers.py**: Funciones para exportar datos a diferentes formatos.
 
 ### Pages/Email
 
@@ -93,13 +121,28 @@ Para trabajar de forma independiente en cada funcionalidad, estos son los archiv
 3. Para modificar el algoritmo de match:
    - `utils/match_algorithm.py`
 
-### Funcionalidad de Preprocesamiento
+### Funcionalidad de Preprocesamiento (Nueva estructura modular)
 
-1. Para desarrollar esta funcionalidad:
-   - `pages/preprocessing/preprocess_page.py`
-   - `utils/data_processors.py`
-   
-2. Características principales de preprocesamiento:
+1. Para modificar el punto de entrada principal:
+   - `pages/preprocessing/preprocess_main.py`
+
+2. Para trabajar en la carga y limpieza de datos:
+   - `pages/preprocessing/tabs/load_clean_tab.py`
+   - `pages/preprocessing/components/data_validators.py`
+
+3. Para trabajar en la selección por área:
+   - `pages/preprocessing/tabs/selection_area_tab.py`
+
+4. Para trabajar en la exportación:
+   - `pages/preprocessing/tabs/export_tab.py`
+   - `pages/preprocessing/components/file_handlers.py`
+
+5. Para modificar los componentes reutilizables:
+   - `pages/preprocessing/components/data_validators.py`
+   - `pages/preprocessing/components/data_handlers.py`
+   - `pages/preprocessing/components/file_handlers.py`
+
+6. Características principales de preprocesamiento:
    - **Carga y limpieza de datos**: Subir archivos Excel/CSV y detectar automáticamente columnas importantes.
    - **Edición de DNIs**: Corregir y estandarizar números de documento con persistencia de cambios.
    - **Validación de correos**: Detectar y corregir problemas con direcciones de correo electrónico.
@@ -147,6 +190,16 @@ streamlit run app.py
 2. **Cargar los datos** en la funcionalidad de Match
 3. **Ejecutar el algoritmo** para encontrar las mejores asignaciones
 4. **Enviar emails** a los participantes con sus asignaciones
+
+## Beneficios de la estructura modular
+
+La aplicación ha sido diseñada con un enfoque modular para facilitar:
+
+1. **Mantenimiento**: Cada componente tiene una única responsabilidad
+2. **Desarrollo en paralelo**: Diferentes desarrolladores pueden trabajar en diferentes módulos
+3. **Reutilización de código**: Componentes compartidos evitan duplicación
+4. **Pruebas unitarias**: Código modular facilita pruebas independientes
+5. **Extensibilidad**: Nuevos componentes pueden ser añadidos fácilmente
 
 ## Funcionalidades avanzadas de preprocesamiento
 
