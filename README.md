@@ -104,12 +104,19 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
     - Carga de archivos xlsx/csv de yakus
     - Visualización de datos y estadísticas
     - Procesamiento y exportación de datos
+    - **Identificación automática de columnas** relacionadas con áreas, horarios, niveles educativos, etc.
+    - **Estandarización automática** de formatos para compatibilidad con el algoritmo de matching
+    - **Transformación de horarios** a formato estándar (Mañana, Tarde, Noche)
+    - **Estandarización de niveles quechua** y niveles educativos
     
   - **ruru_process_tab.py**: Implementa el tab para procesar datos de rurus con:
     - Carga de archivos xlsx/csv de rurus
     - Identificación automática de columnas relevantes
     - Procesamiento y estandarización de datos
     - Exportación en diversos formatos
+    - **Detección de preferencias** y mapeo a áreas apropiadas
+    - **Procesamiento de información de apoderados**
+    - **Estandarización de grados educativos** compatible con niveles de yakus
     
   - **courses_process_tab.py**: Implementa el tab para procesar datos de cursos con:
     - Carga de archivos de cursos
@@ -120,6 +127,10 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
     - Opciones para formato de DNI/Pasaporte
     - Configuración de formato de nombres
     - Opciones de estandarización y limpieza
+    - **Panel de configuración de estandarización** para personalizar el proceso
+    - **Verificación de compatibilidad** entre datos de Rurus y Yakus
+    - **Opciones avanzadas para horarios y niveles educativos**
+    - **Ajuste de umbrales de compatibilidad** para el matching
 
 - **components/**:
   - **data_validators.py**: Componentes para validar datos como DNI y correo electrónico.
@@ -136,6 +147,62 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 - **data_processors.py**: Funciones utilitarias para el procesamiento de datos (estandarización de DNIs, validación de emails, etc.).
 - **data_utils.py**: Funciones para cargar y guardar datos, así como gestionar archivos temporales.
 - **email_sender.py**: Implementa la funcionalidad para enviar emails.
+
+## Sistema de Estandarización y Compatibilidad
+
+### Estandarización de Datos
+
+El sistema implementa un robusto proceso de estandarización para garantizar que los datos de Rurus y Yakus sean compatibles para el algoritmo de matching:
+
+#### 1. Estandarización de Horarios
+- **Detección automática** de columnas de horarios en diferentes formatos
+- **Conversión a formato estándar**: "Mañana", "Tarde", "Noche" o "No disponible"
+- **Manejo de formatos variados**: Tanto casillas marcadas (1/0) como textos descriptivos
+- **Configuración personalizable** de rangos horarios para cada categoría
+
+#### 2. Estandarización de Niveles Educativos
+- **Agrupación de grados** en categorías estándar:
+  - Primaria: 1°-2° grado, 3°-4° grado, 5°-6° grado
+  - Secundaria: 1°-3° grado, 4°-5° grado
+- **Mapeo automático** de diferentes formatos de entrada a estas categorías
+- **Compatibilidad** entre el formato de grados de Rurus y los niveles aceptados por Yakus
+
+#### 3. Estandarización de Preferencias y Áreas
+- **Detección de áreas** basada en las preferencias y opciones de cursos/talleres
+- **Categorización en áreas estándar**: "Arte & Cultura", "Asesoría a Colegios Nacionales", "Bienestar Psicológico"
+- **Extracción inteligente** de preferencias específicas según el área detectada
+
+#### 4. Estandarización de Formato de Nombres
+- **Formato coherente** para nombres de Rurus y Yakus
+- **Manejo de nombres compuestos**
+- **Abreviación de apellidos** siguiendo convenciones establecidas
+
+#### 5. Estandarización de Niveles de Quechua
+- **Categorización unificada**: "No lo hablo", "Nivel básico", "Nivel intermedio", "Nivel avanzado", "Nativo"
+- **Interpretación de diferentes expresiones** que indican el mismo nivel
+
+### Sistema de Verificación de Compatibilidad
+
+El nuevo sistema incluye una herramienta para verificar la compatibilidad entre los datos procesados de Rurus y Yakus:
+
+- **Análisis de columnas comunes** entre ambos conjuntos de datos
+- **Cálculo de porcentaje de compatibilidad** basado en la estructura de datos
+- **Verificación específica de horarios** para asegurar formatos compatibles
+- **Validación de niveles educativos** para garantizar que hay correspondencia entre lo que ofrecen los Yakus y necesitan los Rurus
+- **Umbral configurable** para determinar si los datos están listos para el proceso de matching
+- **Diagnóstico detallado** de problemas de compatibilidad con recomendaciones para solucionarlos
+
+### Panel de Configuración Avanzada
+
+El módulo de configuración permite personalizar el proceso de estandarización:
+
+- **Personalización de categorías de horarios** con rangos horarios ajustables
+- **Definición de niveles educativos** y los grados que incluyen
+- **Configuración de áreas estándar** del programa
+- **Ajuste de niveles de quechua** reconocidos
+- **Opciones para el formato de salida** de los datos procesados
+- **Guardar y cargar configuraciones** para mantener la consistencia entre sesiones
+- **Visualización de configuración actual** en formato JSON para referencia
 
 ## Ejemplos de Datos
 
@@ -207,6 +274,32 @@ Para que el algoritmo de matching funcione correctamente, los datos de Yakus y R
 
 Esto permite que el algoritmo de matching pueda comparar eficientemente las preferencias, disponibilidad horaria, niveles educativos y otros criterios importantes para la asignación.
 
+## Flujo de trabajo mejorado para el procesamiento y match
+
+1. **Preprocesar los datos** utilizando las herramientas de estandarización:
+   - **Cargar archivos** de Rurus y Yakus (formatos .xlsx o .csv)
+   - **Identificación automática** de columnas relevantes
+   - **Estandarización de formatos** (horarios, niveles educativos, nombres, etc.)
+   - **Verificación de compatibilidad** para asegurar datos listos para matching
+   - **Exportación** de datos procesados en formatos Excel o CSV
+
+2. **Revisar la configuración** para asegurar compatibilidad:
+   - Ajustar parámetros de estandarización según sea necesario
+   - Verificar umbrales de compatibilidad
+   - Resolver problemas detectados en el proceso de verificación
+
+3. **Cargar los datos procesados** en la funcionalidad de Match:
+   - Utilizar los archivos estandarizados ya preparados
+   - Confirmar la correcta interpretación de los datos
+
+4. **Ejecutar el algoritmo** para encontrar las mejores asignaciones:
+   - El algoritmo utiliza los formatos estandarizados para optimizar las asignaciones
+   - Las coincidencias son más precisas gracias a la compatibilidad de formatos
+
+5. **Revisar y ajustar resultados** si es necesario
+
+6. **Enviar emails** a los participantes con sus asignaciones
+
 ## Guía para el desarrollo por funcionalidad
 
 Para trabajar de forma independiente en cada funcionalidad, estos son los archivos relevantes por área:
@@ -249,23 +342,13 @@ Para trabajar de forma independiente en cada funcionalidad, estos son los archiv
 7. Para trabajar en el procesamiento de cursos:
    - `pages/preprocessing/tabs/courses_process_tab.py`
 
-8. Para modificar la configuración:
+8. Para modificar la configuración y compatibilidad:
    - `pages/preprocessing/tabs/config_tab.py`
 
 9. Para modificar los componentes reutilizables:
    - `pages/preprocessing/components/data_validators.py`
    - `pages/preprocessing/components/data_handlers.py`
    - `pages/preprocessing/components/file_handlers.py`
-
-10. Características principales de preprocesamiento:
-   - **Carga y limpieza de datos**: Subir archivos Excel/CSV y detectar automáticamente columnas importantes.
-   - **Edición de DNIs**: Corregir y estandarizar números de documento con persistencia de cambios.
-   - **Validación de correos**: Detectar y corregir problemas con direcciones de correo electrónico.
-   - **Ordenamiento inteligente**: Ordenar datos por área u otras columnas manteniendo el orden en la exportación.
-   - **Filtrado por área y selección**: Filtrar yakus específicos por área usando una lista de seleccionados.
-   - **Gestión de DNIs no encontrados**: Identificar y gestionar yakus que no se encuentran en un área específica.
-   - **Búsqueda avanzada**: Localizar yakus por DNI o nombre en toda la base de datos.
-   - **Asignación manual de área**: Reasignar yakus a áreas específicas cuando es necesario.
 
 ### Funcionalidad de Emails
 
@@ -291,21 +374,6 @@ Para ejecutar la aplicación:
 streamlit run app.py
 ```
 
-## Flujo de trabajo típico
-
-1. **Preprocesar los datos** de Yakus y Rurus:
-   - Cargar archivo de datos de yakus
-   - Seleccionar columnas relevantes
-   - Limpiar y estandarizar DNIs/Pasaportes y correos
-   - Ordenar datos por área u otras columnas de interés
-   - Filtrar por área usando lista de seleccionados
-   - Gestionar casos especiales de DNIs no encontrados
-   - Exportar datos limpios y ordenados
-
-2. **Cargar los datos** en la funcionalidad de Match
-3. **Ejecutar el algoritmo** para encontrar las mejores asignaciones
-4. **Enviar emails** a los participantes con sus asignaciones
-
 ## Beneficios de la estructura modular
 
 La aplicación ha sido diseñada con un enfoque modular para facilitar:
@@ -315,20 +383,6 @@ La aplicación ha sido diseñada con un enfoque modular para facilitar:
 3. **Reutilización de código**: Componentes compartidos evitan duplicación
 4. **Pruebas unitarias**: Código modular facilita pruebas independientes
 5. **Extensibilidad**: Nuevos componentes pueden ser añadidos fácilmente
-
-## Funcionalidades avanzadas de preprocesamiento
-
-### Gestión de DNIs y ordenamiento
-- Editar manualmente DNIs con formato incorrecto
-- Conservar documentos especiales (carnets de extranjería, etc.)
-- Ordenar por área o cualquier columna con persistencia del ordenamiento
-- Exportación que mantiene todas las ediciones y ordenamiento realizados
-
-### Gestión de DNIs no encontrados
-- Ver la lista detallada de yakus no encontrados en un área específica
-- Buscar estos yakus en toda la base de datos por DNI
-- Buscar por nombre cuando no se encuentra el DNI
-- Reasignar yakus a otras áreas cuando sea necesario
 
 ## Dependencias
 
