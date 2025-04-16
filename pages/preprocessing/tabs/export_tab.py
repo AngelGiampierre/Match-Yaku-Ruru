@@ -1,24 +1,230 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import io
+import os
+import sys
+from datetime import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
 from pages.preprocessing.components.file_handlers import export_dataframe
 
+# Agregar la raíz del proyecto al path de Python para importaciones absolutas
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
+from utils import load_data, save_data, get_temp_files
+
 def export_tab():
-    """Tab para exportación de datos procesados"""
+    """
+    Tab para exportar los datos procesados.
+    Permite visualizar resúmenes de datos y exportar en diferentes formatos.
+    """
     st.header("Exportación de Datos")
+    st.subheader("Visualiza, resume y exporta los datos procesados")
     
-    # Determinar qué datos exportar (procesados o filtrados por área)
-    data_to_export = get_data_to_export()
+    # Obtener lista de archivos temporales disponibles
+    temp_files = get_temp_files()
+    pkl_files = [f for f in temp_files if f.endswith('.pkl')]
     
-    if data_to_export is None:
-        st.warning("⚠️ No hay datos para exportar. Procesa los datos en las pestañas anteriores.")
+    if not pkl_files:
+        st.warning("⚠️ No se encontraron archivos de datos procesados. Por favor, procesa algunos datos primero.")
         return
     
-    # Mostrar una vista previa para confirmar que los datos están ordenados correctamente
-    with st.expander("Verificar datos a exportar", expanded=False):
-        st.dataframe(data_to_export)
+    # Seleccionar archivo a exportar
+    st.write("### Seleccionar archivo para exportar")
     
-    # Opciones de exportación
-    export_options(data_to_export)
+    # Categorizar archivos
+    yakus_files = [f for f in pkl_files if 'yaku' in f.lower()]
+    rurus_files = [f for f in pkl_files if 'ruru' in f.lower()]
+    other_files = [f for f in pkl_files if 'yaku' not in f.lower() and 'ruru' not in f.lower()]
+    
+    # Crear tabs para los diferentes tipos de archivos
+    tab1, tab2, tab3 = st.tabs(["Datos de Yakus", "Datos de Rurus", "Otros datos"])
+    
+    with tab1:
+        if yakus_files:
+            selected_yaku_file = st.selectbox(
+                "Selecciona un archivo de datos de Yakus:",
+                options=yakus_files,
+                key="yaku_file_select"
+            )
+            
+            if st.button("Cargar datos de Yakus", key="load_yaku_button"):
+                process_file_export(selected_yaku_file)
+        else:
+            st.info("No hay archivos de datos de Yakus disponibles.")
+    
+    with tab2:
+        if rurus_files:
+            selected_ruru_file = st.selectbox(
+                "Selecciona un archivo de datos de Rurus:",
+                options=rurus_files,
+                key="ruru_file_select"
+            )
+            
+            if st.button("Cargar datos de Rurus", key="load_ruru_button"):
+                process_file_export(selected_ruru_file)
+        else:
+            st.info("No hay archivos de datos de Rurus disponibles.")
+    
+    with tab3:
+        if other_files:
+            selected_other_file = st.selectbox(
+                "Selecciona un archivo de otros datos:",
+                options=other_files,
+                key="other_file_select"
+            )
+            
+            if st.button("Cargar otros datos", key="load_other_button"):
+                process_file_export(selected_other_file)
+        else:
+            st.info("No hay otros archivos de datos disponibles.")
+
+def process_file_export(file_name):
+    """
+    Procesa y muestra opciones de exportación para un archivo seleccionado.
+    
+    Args:
+        file_name (str): Nombre del archivo a procesar y exportar
+    """
+    try:
+        # Cargar datos
+        data = load_data(file_name)
+        
+        if data is None:
+            st.error(f"❌ Error al cargar el archivo {file_name}.")
+            return
+        
+        # Mostrar información del archivo
+        st.success(f"✅ Archivo cargado: {file_name}")
+        st.write(f"Dimensiones: {data.shape[0]} filas x {data.shape[1]} columnas")
+        
+        # Mostrar vista previa de los datos
+        with st.expander("Vista previa de los datos", expanded=True):
+            st.dataframe(data.head(10))
+        
+        # Resumen estadístico básico
+        with st.expander("Resumen estadístico"):
+            # Mostrar solo para columnas numéricas
+            numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+            if numeric_cols:
+                st.write("Estadísticas para columnas numéricas:")
+                st.dataframe(data[numeric_cols].describe())
+            else:
+                st.info("No hay columnas numéricas para mostrar estadísticas.")
+        
+        # Distribución por área si existe la columna
+        area_cols = [col for col in data.columns if 'area' in col.lower() or 'área' in col.lower()]
+        if area_cols:
+            area_col = area_cols[0]  # Usar la primera columna de área encontrada
+            
+            with st.expander("Distribución por Área"):
+                # Crear gráfico de distribución por área
+                if pd.api.types.is_string_dtype(data[area_col]):
+                    plt.figure(figsize=(10, 6))
+                    area_counts = data[area_col].value_counts()
+                    sns.barplot(x=area_counts.index, y=area_counts.values)
+                    plt.xticks(rotation=45, ha='right')
+                    plt.xlabel('Área')
+                    plt.ylabel('Cantidad')
+                    plt.title('Distribución por Área')
+                    plt.tight_layout()
+                    st.pyplot(plt)
+                    
+                    # Mostrar tabla de distribución
+                    st.write("Distribución numérica por área:")
+                    area_distribution = data[area_col].value_counts().reset_index()
+                    area_distribution.columns = ['Área', 'Cantidad']
+                    area_distribution['Porcentaje'] = (area_distribution['Cantidad'] / area_distribution['Cantidad'].sum() * 100).round(2)
+                    st.dataframe(area_distribution)
+        
+        # Opciones de exportación
+        st.write("### Opciones de exportación")
+        
+        # Configuración de exportación
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            include_index = st.checkbox("Incluir índice en la exportación", value=False)
+        
+        with col2:
+            if 'xlsx' in file_name:
+                sheet_name = st.text_input("Nombre de la hoja (para Excel):", value="Datos")
+        
+        # Botones de exportación
+        export_col1, export_col2 = st.columns(2)
+        
+        with export_col1:
+            # Exportar a Excel
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                data.to_excel(writer, index=include_index, sheet_name=sheet_name if 'sheet_name' in locals() else "Datos")
+            excel_data = output.getvalue()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_base = file_name.replace(".pkl", "")
+            st.download_button(
+                label="📥 Exportar como Excel",
+                data=excel_data,
+                file_name=f"{file_base}_{timestamp}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        
+        with export_col2:
+            # Exportar a CSV
+            csv = data.to_csv(index=include_index)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_base = file_name.replace(".pkl", "")
+            st.download_button(
+                label="📥 Exportar como CSV",
+                data=csv,
+                file_name=f"{file_base}_{timestamp}.csv",
+                mime="text/csv"
+            )
+        
+        # Opción para exportar subconjunto de columnas
+        with st.expander("Exportar subconjunto de columnas"):
+            selected_columns = st.multiselect(
+                "Selecciona las columnas a exportar:",
+                options=data.columns.tolist(),
+                default=data.columns.tolist()
+            )
+            
+            if selected_columns:
+                subset_data = data[selected_columns]
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Exportar a Excel (subconjunto)
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        subset_data.to_excel(writer, index=include_index, sheet_name=sheet_name if 'sheet_name' in locals() else "Datos")
+                    excel_data = output.getvalue()
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    file_base = file_name.replace(".pkl", "")
+                    st.download_button(
+                        label="📥 Exportar subconjunto como Excel",
+                        data=excel_data,
+                        file_name=f"{file_base}_subset_{timestamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="subset_excel_button"
+                    )
+                
+                with col2:
+                    # Exportar a CSV (subconjunto)
+                    csv = subset_data.to_csv(index=include_index)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    file_base = file_name.replace(".pkl", "")
+                    st.download_button(
+                        label="📥 Exportar subconjunto como CSV",
+                        data=csv,
+                        file_name=f"{file_base}_subset_{timestamp}.csv",
+                        mime="text/csv",
+                        key="subset_csv_button"
+                    )
+        
+    except Exception as e:
+        st.error(f"Error al procesar el archivo: {str(e)}")
+        st.error("Por favor, intenta con otro archivo o contacta al administrador del sistema.")
 
 def get_data_to_export():
     """Obtiene los datos a exportar desde la sesión."""

@@ -6,6 +6,8 @@ import sys
 import os
 import base64
 from io import BytesIO
+from datetime import datetime
+import io
 
 # Importamos componentes reutilizables
 from pages.preprocessing.components.data_validators import validate_dni_column, validate_email_column
@@ -19,125 +21,211 @@ from utils.data_processors import (
     get_duplicated_dnis
 )
 
-def load_and_clean_tab():
-    """Tab para carga de datos y limpieza de DNI/Pasaporte y Email"""
+# Agregar la raíz del proyecto al path de Python para importaciones absolutas
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
+from utils import load_data, save_data
+
+def load_clean_tab():
+    """
+    Tab para cargar y limpiar datos iniciales.
+    Permite cargar archivos CSV o Excel, limpiar datos básicos y exportarlos.
+    """
     st.header("Carga y Limpieza de Datos")
+    st.subheader("Sube, limpia y prepara tus datos para el procesamiento")
     
-    # Verificar el estado actual de los datos procesados
-    if st.session_state.processed_data is not None:
-        st.success(f"✅ Datos procesados disponibles: {len(st.session_state.processed_data)} registros")
-        
-        # Opción para ver el estado actual de los datos
-        if st.checkbox("Mostrar estado actual de los datos procesados", key="show_current_state"):
-            st.write("Primeros 5 registros de los datos procesados:")
-            st.dataframe(st.session_state.processed_data.head(5))
-            
-            # Verificar si hay columnas validadas
-            validated_cols = [col for col in st.session_state.processed_data.columns if '_Validado' in col]
-            if validated_cols:
-                st.info(f"Columnas validadas disponibles: {', '.join(validated_cols)}")
+    # Sección de carga de archivo
+    st.write("### 1. Selecciona el tipo de archivo a cargar")
     
-    # Cargar archivo Excel/CSV
+    file_type = st.radio(
+        "Tipo de datos a cargar:",
+        options=["Datos de Yakus (mentores)", "Datos de Rurus (estudiantes)", "Datos de cursos/talleres"],
+        horizontal=True
+    )
+    
+    file_key = {
+        "Datos de Yakus (mentores)": "yakus_file",
+        "Datos de Rurus (estudiantes)": "rurus_file",
+        "Datos de cursos/talleres": "courses_file"
+    }[file_type]
+    
+    # Carga de archivo
     uploaded_file = st.file_uploader(
-        "Selecciona el archivo Excel/CSV con los datos de yakus", 
-        type=["xlsx", "csv"], 
-        key="file_uploader_1"
+        f"Carga el archivo con {file_type} (.xlsx, .csv)",
+        type=["xlsx", "csv"],
+        key=file_key
     )
     
     if uploaded_file is not None:
         try:
-            # Cargar datos según tipo de archivo
-            if uploaded_file.name.endswith('.csv'):
+            # Determinar el tipo de archivo y leer los datos
+            file_extension = uploaded_file.name.split(".")[-1].lower()
+            
+            if file_extension == "csv":
                 df = pd.read_csv(uploaded_file)
-            else:
+            elif file_extension == "xlsx":
                 df = pd.read_excel(uploaded_file)
             
-            # Convertir todas las columnas de texto a string para evitar problemas con PyArrow
-            for col in df.select_dtypes(include=['object']).columns:
-                df[col] = df[col].astype(str)
+            # Mostrar información básica del archivo
+            st.success(f"✅ Archivo cargado correctamente: {uploaded_file.name}")
+            st.write(f"Dimensiones del DataFrame: {df.shape[0]} filas x {df.shape[1]} columnas")
             
-            # Guardar datos originales en sesión
-            st.session_state.yakus_data = df.copy()
+            # Vista previa de los datos
+            with st.expander("Vista previa de los datos cargados", expanded=True):
+                st.dataframe(df.head())
             
-            # Mostrar información básica
-            st.success(f"✅ Archivo cargado: {uploaded_file.name}")
-            st.info(f"📊 Registros: {len(df)} | Columnas: {len(df.columns)}")
+            # Mostrar estadísticas de valores faltantes
+            with st.expander("Estadísticas de valores faltantes"):
+                missing_data = pd.DataFrame({
+                    'Columna': df.columns,
+                    'Tipo de Dato': df.dtypes.values,
+                    'Valores Nulos': df.isnull().sum().values,
+                    'Porcentaje Nulos': (df.isnull().sum().values / len(df) * 100).round(2)
+                })
+                st.dataframe(missing_data.sort_values('Valores Nulos', ascending=False))
             
-            # Permitir seleccionar las columnas a mantener
-            st.subheader("Selección de Columnas")
+            # Opciones de limpieza básica
+            st.write("### 2. Opciones de limpieza básica")
             
-            # Detectar automáticamente columnas críticas
-            suggested_columns = detect_important_columns(df)
+            # Eliminar filas con valores nulos
+            col1, col2 = st.columns(2)
+            with col1:
+                eliminar_nulos = st.checkbox("Eliminar filas con valores nulos en columnas clave", value=False)
+                
+                if eliminar_nulos:
+                    columnas_clave = st.multiselect(
+                        "Selecciona las columnas clave (se eliminarán filas con valores nulos en estas columnas):",
+                        options=df.columns.tolist()
+                    )
             
-            # Permitir al usuario seleccionar columnas
-            selected_columns = st.multiselect(
-                "Selecciona las columnas que deseas conservar",
-                options=df.columns.tolist(),
-                default=suggested_columns,
-                key="column_selector"
+            # Convertir texto a minúsculas/mayúsculas
+            with col2:
+                caso_texto = st.radio(
+                    "Convertir texto a:",
+                    options=["No cambiar", "Minúsculas", "Mayúsculas", "Capitalizar (primera letra mayúscula)"],
+                    horizontal=False,
+                    index=0
+                )
+                
+                if caso_texto != "No cambiar":
+                    columnas_texto = st.multiselect(
+                        "Selecciona las columnas de texto:",
+                        options=[col for col in df.columns if df[col].dtype == 'object']
+                    )
+            
+            # Ordenar datos
+            ordenar_por = st.selectbox(
+                "Ordenar datos por:",
+                options=["No ordenar"] + df.columns.tolist()
             )
             
-            if selected_columns:
-                # IMPORTANTE: Verificar si ya tenemos datos procesados en la sesión
-                # Si es así, usamos esos datos en lugar de recrear el DataFrame
-                if st.session_state.processed_data is not None:
-                    # Usar los datos procesados existentes
-                    filtered_df = st.session_state.processed_data.copy()
-                    st.success("✅ Usando datos procesados guardados en la sesión")
-                    st.info(f"Los datos ya contienen ediciones previas y ordenamiento")
-                else:
-                    # Crear DataFrame nuevo con columnas seleccionadas
-                    filtered_df = df[selected_columns].copy()
+            if ordenar_por != "No ordenar":
+                orden = st.radio(
+                    "Orden:",
+                    options=["Ascendente", "Descendente"],
+                    horizontal=True,
+                    index=0
+                )
+            
+            # Botón para aplicar limpieza
+            if st.button("Aplicar limpieza y procesar datos", key="clean_data_button"):
+                with st.spinner("Procesando datos..."):
+                    # Crear una copia para no modificar el original
+                    processed_df = df.copy()
                     
-                    # Convertir todas las columnas de texto a string para evitar problemas con PyArrow
-                    for col in filtered_df.select_dtypes(include=['object']).columns:
-                        filtered_df[col] = filtered_df[col].astype(str)
+                    # Aplicar eliminación de filas con nulos
+                    if eliminar_nulos and columnas_clave:
+                        initial_rows = len(processed_df)
+                        processed_df = processed_df.dropna(subset=columnas_clave)
+                        removed_rows = initial_rows - len(processed_df)
+                        st.write(f"- Se eliminaron {removed_rows} filas con valores nulos en las columnas seleccionadas.")
                     
-                    # Guardar en la sesión inmediatamente
-                    st.session_state.processed_data = filtered_df.copy()
-                    st.success("✅ Se ha creado un nuevo DataFrame procesado")
+                    # Aplicar conversión de texto
+                    if caso_texto != "No cambiar" and columnas_texto:
+                        for col in columnas_texto:
+                            if caso_texto == "Minúsculas":
+                                processed_df[col] = processed_df[col].astype(str).str.lower()
+                            elif caso_texto == "Mayúsculas":
+                                processed_df[col] = processed_df[col].astype(str).str.upper()
+                            elif caso_texto == "Capitalizar (primera letra mayúscula)":
+                                processed_df[col] = processed_df[col].astype(str).str.title()
+                        st.write(f"- Se convirtieron {len(columnas_texto)} columnas a {caso_texto.lower()}.")
+                    
+                    # Aplicar ordenamiento
+                    if ordenar_por != "No ordenar":
+                        processed_df = processed_df.sort_values(
+                            by=ordenar_por,
+                            ascending=(orden == "Ascendente")
+                        )
+                        st.write(f"- Datos ordenados por '{ordenar_por}' en orden {orden.lower()}.")
+                    
+                    # Guardar datos procesados
+                    file_prefix = {
+                        "yakus_file": "yakus_initial",
+                        "rurus_file": "rurus_initial",
+                        "courses_file": "courses_initial"
+                    }[file_key]
+                    
+                    save_data(processed_df, f"{file_prefix}.pkl")
+                    st.success(f"✅ Datos procesados guardados como {file_prefix}.pkl")
+                    
+                    # Descargar datos procesados
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Opción para descargar como Excel
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            processed_df.to_excel(writer, index=False, sheet_name='Datos')
+                        excel_data = output.getvalue()
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        st.download_button(
+                            label="📥 Descargar como Excel",
+                            data=excel_data,
+                            file_name=f"{file_prefix}_{timestamp}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                    
+                    with col2:
+                        # Opción para descargar como CSV
+                        csv = processed_df.to_csv(index=False)
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        st.download_button(
+                            label="📥 Descargar como CSV",
+                            data=csv,
+                            file_name=f"{file_prefix}_{timestamp}.csv",
+                            mime="text/csv"
+                        )
+                    
+                    # Mostrar vista previa de los datos procesados
+                    st.subheader("Vista previa de los datos procesados")
+                    st.dataframe(processed_df.head())
+                    
+                    # Mostrar resumen del procesamiento
+                    st.subheader("Resumen del procesamiento")
+                    st.write(f"- Número de filas: {processed_df.shape[0]}")
+                    st.write(f"- Número de columnas: {processed_df.shape[1]}")
+                    
+                    # Estadísticas de valores faltantes después del procesamiento
+                    with st.expander("Estadísticas de valores faltantes después del procesamiento"):
+                        missing_data_after = pd.DataFrame({
+                            'Columna': processed_df.columns,
+                            'Tipo de Dato': processed_df.dtypes.values,
+                            'Valores Nulos': processed_df.isnull().sum().values,
+                            'Porcentaje Nulos': (processed_df.isnull().sum().values / len(processed_df) * 100).round(2)
+                        })
+                        st.dataframe(missing_data_after.sort_values('Valores Nulos', ascending=False))
+                    
+                    # Siguiente paso
+                    st.info("""
+                        **Siguiente paso:** Ahora puedes proceder a la siguiente pestaña para continuar con el procesamiento específico 
+                        según el tipo de datos (Yakus, Rurus o Cursos).
+                    """)
             
-            # Contenedor para validación de datos
-            validation_container = st.container()
-            
-            with validation_container:
-                # Organizar las validaciones en tabs para mejor visualización
-                val_tab1, val_tab2 = st.tabs(["DNI/Pasaporte", "Correo Electrónico"])
-                
-                # ---- VALIDACIÓN DE DNI/PASAPORTE ----
-                with val_tab1:
-                    # Utilizar el componente reutilizable para validación de DNI
-                    if selected_columns:
-                        dni_column = detect_dni_column(selected_columns)
-                        if dni_column:
-                            filtered_df = validate_dni_column(filtered_df, dni_column)
-                
-                # ---- VALIDACIÓN DE CORREO ELECTRÓNICO ----
-                with val_tab2:
-                    # Utilizar el componente reutilizable para validación de email
-                    if selected_columns:
-                        email_column = detect_email_column(selected_columns)
-                        if email_column:
-                            filtered_df = validate_email_column(filtered_df, email_column)
-            
-            # Filtrar por aprobados/rechazados
-            show_filter_candidates_section(filtered_df, selected_columns)
-            
-            # Guardar el DataFrame procesado en la sesión
-            st.session_state.processed_data = filtered_df
-            
-            # --- SECCIÓN DE ORDENAMIENTO ---
-            show_sorting_section(filtered_df, selected_columns)
-            
-            # Mostrar vista previa
-            st.subheader("Vista Previa de Datos Procesados")
-            st.dataframe(filtered_df.head(10))
-            
-            # Botón para exportar datos procesados directamente desde el Paso 1
-            show_export_section(filtered_df, dni_column if 'dni_column' in locals() else None)
-        
         except Exception as e:
-            st.error(f"❌ Error al procesar el archivo: {str(e)}")
+            st.error(f"Error al procesar el archivo: {str(e)}")
+            st.error("Por favor, revisa el archivo e intenta nuevamente.")
+    else:
+        st.info("Por favor, carga un archivo para comenzar.")
 
 def detect_important_columns(df):
     """Detecta automáticamente columnas importantes en el DataFrame."""
