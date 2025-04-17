@@ -23,16 +23,65 @@ def selection_area_tab():
     st.header("Selección por Área")
     st.subheader("Filtra los datos por área utilizando listas de selección")
     
-    # Cargar datos existentes
-    yakus_data = load_data("yakus_processed.pkl") or load_data("yakus_initial.pkl")
+    # Opciones para cargar datos
+    data_source = st.radio(
+        "Selecciona la fuente de datos:",
+        options=["Usar datos procesados previamente", "Cargar nuevo archivo de Yakus"],
+        horizontal=True
+    )
     
+    yakus_data = None
+    
+    if data_source == "Usar datos procesados previamente":
+        # Cargar datos existentes
+        yakus_data = load_data("yakus_processed.pkl") or load_data("yakus_initial.pkl")
+        
+        if yakus_data is None:
+            st.warning("⚠️ No se encontraron datos de Yakus. Por favor, carga y procesa los datos primero o selecciona 'Cargar nuevo archivo de Yakus'.")
+            return
+        
+        # Mostrar información básica de los datos cargados
+        st.success(f"✅ Datos de Yakus cargados: {yakus_data.shape[0]} filas x {yakus_data.shape[1]} columnas")
+    
+    else:
+        # Opción para cargar directamente un archivo nuevo
+        st.write("### Cargar archivo de Yakus")
+        uploaded_file = st.file_uploader(
+            "Carga el archivo con datos de Yakus (.xlsx, .csv)",
+            type=["xlsx", "csv"],
+            key="yakus_direct_upload"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                # Determinar el tipo de archivo y leer los datos
+                file_extension = uploaded_file.name.split(".")[-1].lower()
+                
+                if file_extension == "csv":
+                    yakus_data = pd.read_csv(uploaded_file)
+                elif file_extension == "xlsx":
+                    yakus_data = pd.read_excel(uploaded_file)
+                
+                # Mostrar información básica del archivo
+                st.success(f"✅ Archivo cargado correctamente: {uploaded_file.name}")
+                st.write(f"Dimensiones del DataFrame: {yakus_data.shape[0]} filas x {yakus_data.shape[1]} columnas")
+                
+                # Vista previa de los datos
+                with st.expander("Vista previa de los datos cargados", expanded=True):
+                    st.dataframe(yakus_data.head())
+                
+                # Guardar en la memoria temporal para uso posterior
+                save_data(yakus_data, "yakus_direct_upload.pkl")
+                
+            except Exception as e:
+                st.error(f"Error al procesar el archivo: {str(e)}")
+                return
+    
+    # Si no hay datos disponibles, detener la ejecución
     if yakus_data is None:
-        st.warning("⚠️ No se encontraron datos de Yakus. Por favor, carga y procesa los datos primero.")
+        st.info("Por favor, carga un archivo o selecciona datos existentes para continuar.")
         return
-    
-    # Mostrar información básica de los datos cargados
-    st.success(f"✅ Datos de Yakus cargados: {yakus_data.shape[0]} filas x {yakus_data.shape[1]} columnas")
-    
+        
     # Determinar la columna de área
     area_cols = [col for col in yakus_data.columns if 'area' in col.lower() or 'área' in col.lower()]
     
