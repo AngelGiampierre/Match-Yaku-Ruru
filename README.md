@@ -84,7 +84,8 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
     - Exportación rápida
   
   - **selection_area_tab.py**: Implementa el tab para filtrado por área con funciones para:
-    - Cargar archivo de selección
+    - **Carga directa de archivos de Yakus** sin necesidad de preprocesamiento previo
+    - Cargar archivo de selección con DNIs específicos
     - Validar DNIs en selección
     - Filtrado por área específica
     - Gestión de DNIs no encontrados
