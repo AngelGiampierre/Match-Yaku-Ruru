@@ -311,14 +311,13 @@ def standardize_schedules(df: pd.DataFrame) -> pd.DataFrame:
                 f"{dia}_noche": "Noche (6pm -10 pm)"
             }
             
+            # Crear un diccionario para seguir los turnos ya añadidos para cada fila
+            turnos_añadidos = {i: set() for i in range(len(df))}
+            
             # Procesar cada turno
             for turno_col in turnos_existentes:
                 if turno_col in df.columns:
-                    # Mostrar los valores únicos para debugging
-                    # st.write(f"Valores únicos en {turno_col}: {df[turno_col].unique()}")
-                    
                     # Convertir la columna a un formato que podamos procesar
-                    # Primero asegurar que tenemos valores numéricos o strings comparables
                     df[turno_col] = df[turno_col].fillna(0)
                     
                     # Intentar convertir a numérico (para manejar strings, floats, ints, etc.)
@@ -329,20 +328,28 @@ def standardize_schedules(df: pd.DataFrame) -> pd.DataFrame:
                         df[turno_col] = df[turno_col].astype(str)
                     
                     # Ahora verificar si hay disponibilidad (valor 1 como número o string)
-                    # Para valores numéricos
                     if pd.api.types.is_numeric_dtype(df[turno_col]):
                         disponible_mask = df[turno_col] == 1
                     else:
                         # Para strings, verificar "1" o valores que indiquen disponibilidad
                         disponible_mask = df[turno_col].isin(["1", "true", "True", "yes", "Yes", "disponible", "Disponible"])
                     
-                    # Donde hay disponibilidad y no hay valor previo
-                    mascara = disponible_mask & (df[col_horario] == "")
-                    df.loc[mascara, col_horario] = formato_turnos.get(turno_col, "")
+                    # Obtener el formato de turno correspondiente
+                    formato_turno = formato_turnos.get(turno_col, "")
                     
-                    # Si ya hay un valor, añadir con coma
-                    mascara2 = disponible_mask & (df[col_horario] != "")
-                    df.loc[mascara2, col_horario] = df.loc[mascara2, col_horario] + ", " + formato_turnos.get(turno_col, "")
+                    # Iterar sobre cada fila que tiene disponibilidad
+                    for idx in df.index[disponible_mask]:
+                        # Verificar si el turno ya fue añadido para esta fila
+                        if formato_turno not in turnos_añadidos[idx]:
+                            # Si la columna está vacía, simplemente asignar el formato
+                            if df.loc[idx, col_horario] == "":
+                                df.loc[idx, col_horario] = formato_turno
+                            else:
+                                # Si ya hay otros valores, añadir con coma
+                                df.loc[idx, col_horario] += f", {formato_turno}"
+                            
+                            # Marcar este turno como añadido para esta fila
+                            turnos_añadidos[idx].add(formato_turno)
             
             # Donde no haya disponibilidad, poner "No disponible"
             df.loc[df[col_horario] == "", col_horario] = "No disponible"
@@ -375,6 +382,7 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)3\s*(?:p|primaria)": "Primaria (3° y 4° grado)",
         r"^3$|^3ro$": "Primaria (3° y 4° grado)",
         r"(?i)tercer\s*grado$": "Primaria (3° y 4° grado)",  # Tercer grado sin especificar nivel
+        r"(?i)3ro\s*de\s*primaria": "Primaria (3° y 4° grado)",  # Caso específico
         
         # Cuarto de primaria
         r"(?i)cuart[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (3° y 4° grado)",
@@ -382,6 +390,8 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)4\s*(?:p|primaria)": "Primaria (3° y 4° grado)",
         r"^4$|^4to$": "Primaria (3° y 4° grado)",
         r"(?i)cuarto\s*grado$": "Primaria (3° y 4° grado)",  # Cuarto grado sin especificar nivel
+        r"(?i)4to\s*grado\s*de\s*primaria": "Primaria (3° y 4° grado)",  # Caso específico
+        r"(?i)4to\s*grado\s*primaria": "Primaria (3° y 4° grado)",  # Caso específico sin "de"
         
         # Quinto de primaria
         r"(?i)quint[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (5° y 6° grado)",
@@ -389,6 +399,8 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)5\s*(?:p|primaria)": "Primaria (5° y 6° grado)",
         r"^5$|^5to$|^5P$": "Primaria (5° y 6° grado)",
         r"(?i)quinto\s*grado$": "Primaria (5° y 6° grado)",  # Quinto grado sin especificar nivel
+        r"(?i)5to\s*grado\s*de\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico
+        r"(?i)5to\s*grado\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico sin "de"
         
         # Sexto de primaria
         r"(?i)sext[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (5° y 6° grado)",
@@ -396,6 +408,8 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)6\s*(?:p|primaria)": "Primaria (5° y 6° grado)",
         r"^6$|^6to$|^6TO$|^6p$": "Primaria (5° y 6° grado)",
         r"(?i)sexto\s*grado$": "Primaria (5° y 6° grado)",  # Sexto grado sin especificar nivel
+        r"(?i)6to\s*grado\s*de\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico
+        r"(?i)6to\s*grado\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico sin "de"
         
         # Primero de secundaria
         r"(?i)primer[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
@@ -407,6 +421,7 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)segund[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
         r"(?i)2\s*(?:do|°)?\s*(?:de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
         r"^2$|^2do$": "Secundaria (1°, 2° y 3° grado)",
+        r"(?i)2\s*de\s*secundaria": "Secundaria (1°, 2° y 3° grado)",  # Caso específico
         
         # Tercero de secundaria
         r"(?i)tercer[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
@@ -429,9 +444,16 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
             else:
                 return "No especificado"
             
+        # Limpiar la cadena (eliminar espacios extra y normalizar)
+        grade_str = grade_str.strip()
+        
+        # Imprimir para debug casos difíciles
+        # print(f"Estandarizando: '{grade_str}'")
+        
         # Intentar con cada patrón
         for pattern, standard_grade in grado_map.items():
             if re.search(pattern, grade_str.strip()):
+                # print(f"  Coincide con patrón: {pattern}")
                 return standard_grade
         
         # Caso especial: si es solo un número entre 1-6, asumimos grado de primaria
@@ -447,10 +469,23 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
             pass
                 
         # Si no coincide con ningún patrón
+        # print(f"  No coincide con ningún patrón")
         return grade_str
     
     # Aplicar estandarización
     df["grado"] = df["grado"].apply(standardize_grade)
+    
+    # Añadir registro estadístico
+    valores_no_estandarizados = df["grado"][~df["grado"].isin([
+        "Primaria (1° y 2° grado)", 
+        "Primaria (3° y 4° grado)", 
+        "Primaria (5° y 6° grado)",
+        "Secundaria (1°, 2° y 3° grado)",
+        "No especificado"
+    ])].unique()
+    
+    if len(valores_no_estandarizados) > 0:
+        st.warning(f"⚠️ Algunos valores de grado no pudieron ser estandarizados: {valores_no_estandarizados}")
     
     return df
 
