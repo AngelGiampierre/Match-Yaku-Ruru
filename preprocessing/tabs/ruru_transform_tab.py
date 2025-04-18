@@ -314,15 +314,34 @@ def standardize_schedules(df: pd.DataFrame) -> pd.DataFrame:
             # Procesar cada turno
             for turno_col in turnos_existentes:
                 if turno_col in df.columns:
-                    # Rellenar nulos con 0
-                    df[turno_col] = df[turno_col].fillna(0).astype(str)
+                    # Mostrar los valores únicos para debugging
+                    # st.write(f"Valores únicos en {turno_col}: {df[turno_col].unique()}")
                     
-                    # Donde hay un 1, añadir el formato correspondiente
-                    mascara = (df[turno_col] == "1") & (df[col_horario] == "")
+                    # Convertir la columna a un formato que podamos procesar
+                    # Primero asegurar que tenemos valores numéricos o strings comparables
+                    df[turno_col] = df[turno_col].fillna(0)
+                    
+                    # Intentar convertir a numérico (para manejar strings, floats, ints, etc.)
+                    try:
+                        df[turno_col] = pd.to_numeric(df[turno_col], errors='coerce').fillna(0)
+                    except:
+                        # Si falla, asegurar que tenemos strings
+                        df[turno_col] = df[turno_col].astype(str)
+                    
+                    # Ahora verificar si hay disponibilidad (valor 1 como número o string)
+                    # Para valores numéricos
+                    if pd.api.types.is_numeric_dtype(df[turno_col]):
+                        disponible_mask = df[turno_col] == 1
+                    else:
+                        # Para strings, verificar "1" o valores que indiquen disponibilidad
+                        disponible_mask = df[turno_col].isin(["1", "true", "True", "yes", "Yes", "disponible", "Disponible"])
+                    
+                    # Donde hay disponibilidad y no hay valor previo
+                    mascara = disponible_mask & (df[col_horario] == "")
                     df.loc[mascara, col_horario] = formato_turnos.get(turno_col, "")
                     
                     # Si ya hay un valor, añadir con coma
-                    mascara2 = (df[turno_col] == "1") & (df[col_horario] != "")
+                    mascara2 = disponible_mask & (df[col_horario] != "")
                     df.loc[mascara2, col_horario] = df.loc[mascara2, col_horario] + ", " + formato_turnos.get(turno_col, "")
             
             # Donde no haya disponibilidad, poner "No disponible"
