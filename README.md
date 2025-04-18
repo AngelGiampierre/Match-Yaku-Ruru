@@ -18,7 +18,8 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 │   │   ├── __init__.py
 │   │   ├── column_selection_tab.py  # Selección de columnas
 │   │   ├── dni_validation_tab.py    # Validación de DNIs
-│   │   └── filter_area_tab.py       # Filtrado por área
+│   │   ├── filter_area_tab.py       # Filtrado por área
+│   │   └── ruru_standardization_tab.py  # Estandarización de datos Rurus
 │   ├── ui/                        # Componentes UI reutilizables
 │   │   ├── __init__.py
 │   │   ├── file_uploaders.py      # Uploaders de archivos
@@ -60,6 +61,7 @@ El módulo de preprocesamiento está estructurado siguiendo un enfoque modular q
 - **column_selection_tab.py**: Permite cargar un archivo, seleccionar columnas relevantes y exportar el resultado.
 - **dni_validation_tab.py**: Valida y corrige DNIs o correos electrónicos en un archivo, mostrando estadísticas y permitiendo ediciones.
 - **filter_area_tab.py**: Filtra datos por área y por una lista de identificadores (DNI, correo, nombre).
+- **ruru_standardization_tab.py**: Estandariza datos de Rurus mediante renombrado de columnas, creación de columna única de área y transformación de formato de horarios.
 
 #### Componentes de UI
 
@@ -105,6 +107,15 @@ El módulo de preprocesamiento está estructurado siguiendo un enfoque modular q
    - Filtrado por lista de IDs (DNI, correo, nombre)
    - Manejo de IDs no encontrados
    - Exportación de resultados filtrados
+
+4. **Estandarización de Datos Rurus**
+   - Carga de archivos Excel de Rurus
+   - Renombrado automático de columnas según mapeo predefinido
+   - Selección inteligente de columnas relevantes
+   - Eliminación de columnas innecesarias
+   - Visualización de mapeo de columnas originales a nuevas
+   - Exportación de datos estandarizados
+   - Almacenamiento temporal para uso en otros tabs
 
 ## Ejemplos de Datos
 
@@ -217,7 +228,11 @@ streamlit run app.py
 
 ## Próximos pasos
 
-1. Implementación del módulo de Match para la asignación automática
-2. Implementación del módulo de Envío de Correos
-3. Mejoras en la interfaz de usuario
-4. Implementación de pruebas unitarias
+1. Completar la estandarización de datos de Rurus:
+   - Crear columna única de área basada en columnas BD, BE, BF
+   - Estandarizar formato de horarios
+   - Estandarizar grados e idiomas
+2. Implementación del módulo de Match para la asignación automática
+3. Implementación del módulo de Envío de Correos
+4. Mejoras en la interfaz de usuario
+5. Implementación de pruebas unitarias

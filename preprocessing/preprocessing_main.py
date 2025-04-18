@@ -12,6 +12,7 @@ from typing import Dict, Any, Callable
 from .tabs.column_selection_tab import column_selection_tab
 from .tabs.dni_validation_tab import dni_validation_tab
 from .tabs.filter_area_tab import filter_area_tab
+from .tabs.ruru_standardization_tab import ruru_standardization_tab
 
 
 def preprocessing_page():
@@ -29,7 +30,8 @@ def preprocessing_page():
     tabs = {
         "Selección de Columnas": column_selection_tab,
         "Validación de DNIs/Correos": dni_validation_tab,
-        "Filtrado por Área": filter_area_tab
+        "Filtrado por Área": filter_area_tab,
+        "Estandarización de Rurus": ruru_standardization_tab
     }
     
     # Crear tabs en la interfaz
