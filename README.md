@@ -108,6 +108,49 @@ El módulo de preprocesamiento está estructurado siguiendo un enfoque modular q
 
 ## Ejemplos de Datos
 
+### Ejemplo de datos de Yakus (mentores)
+
+A continuación se muestra un ejemplo anonimizado de cómo se estructura un archivo de datos de Yakus para Arte y Cultura:
+
+| area | correo | horario_lunes | horario_martes | horario_miercoles | horario_jueves | horario_viernes | horario_sabado | horario_domingo | grado | nombre | dni | quechua | celular | taller |
+|------|--------|---------------|----------------|-------------------|----------------|-----------------|----------------|-----------------|-------|--------|-----|---------|---------|--------|
+| Arte & Cultura | ejemplo1@gmail.com | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No disponible | No disponible | Mañana (8am -12 m) | Mañana (8am -12 m) | Mañana (8am -12 m) | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | María Pérez García | 70123456 | No lo hablo | 994000111 | Dibujo y Pintura |
+| Arte & Cultura | ejemplo2@gmail.com | Mañana (8am -12 m) | Mañana (8am -12 m) | Mañana (8am -12 m) | Mañana (8am -12 m) | Mañana (8am -12 m) | Mañana (8am -12 m) | Mañana (8am -12 m) | Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Carlos Mendoza Torres | 71234567 | No lo hablo | 955222333 | Oratoria |
+| Arte & Cultura | ejemplo3@edu.pe | No disponible | No disponible | No disponible | No disponible | No disponible | Mañana (8am -12 m), Tarde (2pm -6 pm), Noche (6pm -10 pm) | Mañana (8am -12 m), Tarde (2pm -6 pm), Noche (6pm -10 pm) | Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Ana Rojas López | 74000111 | Nivel avanzado | 901000222 | Oratoria |
+| Arte & Cultura | ejemplo4@gmail.com | No disponible | No disponible | No disponible | No disponible | No disponible | Mañana (8am -12 m), Tarde (2pm -6 pm) | Mañana (8am -12 m), Tarde (2pm -6 pm) | Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Pablo Huamán Quispe | 74222333 | Nivel básico | 965000444 | Teatro |
+| Arte & Cultura | ejemplo5@edu.pe | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Mañana (8am -12 m) | Mañana (8am -12 m) | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Lucía García Torres | 77444555 | Nivel intermedio | 901000666 | Música |
+| Arte & Cultura | ejemplo6@edu.pe | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Tarde (2pm -6 pm), Noche (6pm -10 pm) | Mañana (8am -12 m), Tarde (2pm -6 pm) | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Rosa Vallejos Prado | 72555666 | No lo hablo | 925000777 | Danza |
+| Arte & Cultura | ejemplo7@gmail.com | No disponible | Noche (6pm -10 pm) | No disponible | Noche (6pm -10 pm) | No disponible | No disponible | No disponible | Primaria (3° y 4° grado) | Jorge Paredes Díaz | 74666777 | No lo hablo | 984000888 | Cuenta cuentos |
+| Arte & Cultura | ejemplo8@gmail.com | Mañana (8am -12 m) | Mañana (8am -12 m) | No disponible | No disponible | No disponible | Tarde (2pm -6 pm) | No disponible | Primaria (3° y 4° grado) | Carmen Ruiz Flores | 71666888 | No lo hablo | 983000999 | Oratoria |
+
+**Notas sobre los datos de Yakus:**
+
+- **Área de voluntariado**: En este ejemplo todos pertenecen a "Arte & Cultura", pero también puede ser "Asesoría a Colegios Nacionales" o "Bienestar Psicológico".
+- **Correo electrónico**: Se utiliza para contactar al Yaku y enviarle información sobre su asignación.
+- **Horarios disponibles**: Cada día puede tener una o varias opciones: "Mañana (8am -12 m)", "Tarde (2pm -6 pm)", "Noche (6pm -10 pm)" o estar vacío (no disponible).
+- **Grados escolares**: Pueden ser uno o varios: "Primaria (3° y 4° grado)", "Primaria (5° y 6° grado)", "Secundaria (1°, 2° y 3° grado)".
+- **Nivel de Quechua**: Puede ser "No lo hablo", "Nivel básico", "Nivel intermedio", "Nivel avanzado" o "Nativo".
+- **Taller**: Corresponde al taller específico dentro del área de Arte y Cultura. Opciones comunes incluyen "Dibujo y Pintura", "Música", "Danza", "Teatro", "Oratoria" y "Cuenta cuentos".
+
+#### Ejemplo de datos de Yakus para Bienestar Psicológico
+
+En el caso de Bienestar Psicológico, la estructura es similar pero sin las columnas de taller y asignatura:
+
+| area | correo | horario_lunes | horario_martes | horario_miercoles | horario_jueves | horario_viernes | horario_sabado | horario_domingo | grado | nombre | dni | quechua | celular |
+|------|--------|---------------|----------------|-------------------|----------------|-----------------|----------------|-----------------|-------|--------|-----|---------|---------|
+| Bienestar Psicológico | ejemplo10@gmail.com | No disponible | No disponible | Noche (6pm -10 pm) | Noche (6pm -10 pm) | No disponible | No disponible | No disponible | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Laura Martínez Valverde | 72800000 | Nivel básico | 981500000 |
+| Bienestar Psicológico | ejemplo11@gmail.com | Tarde (2pm -6 pm) | No disponible | Mañana (8am -12 m) | No disponible | Mañana (8am -12 m), Tarde (2pm -6 pm) | Mañana (8am -12 m), Tarde (2pm -6 pm) | Mañana (8am -12 m) | Primaria (3° y 4° grado), Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Gabriel Casas Oropeza | 75800000 | No lo hablo | 992600000 |
+| Bienestar Psicológico | ejemplo12@hotmail.com | No disponible | Mañana (8am -12 m) | No disponible | Mañana (8am -12 m) | No disponible | No disponible | No disponible | Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Sofía Pacheco Silva | 47100000 | No lo hablo | 986300000 |
+| Bienestar Psicológico | ejemplo13@gmail.com | No disponible | No disponible | No disponible | No disponible | No disponible | Noche (6pm -10 pm) | Mañana (8am -12 m), Tarde (2pm -6 pm), Noche (6pm -10 pm) | Secundaria (1°, 2° y 3° grado) | Daniel Pro Chillitupa | 76800000 | No lo hablo | 965200000 |
+| Bienestar Psicológico | ejemplo14@gmail.com | Mañana (8am -12 m) | Tarde (2pm -6 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Paula Guzmán Taco | 60400000 | No lo hablo | 995500000 |
+| Bienestar Psicológico | ejemplo15@edu.pe | Mañana (8am -12 m), Tarde (2pm -6 pm), Noche (6pm -10 pm) | No disponible | No disponible | No disponible | No disponible | No disponible | Mañana (8am -12 m) | Primaria (3° y 4° grado), Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado) | Jimena Meneses Lapad | 60900000 | Nivel básico | 929400000 |
+
+**Notas sobre los datos de Bienestar Psicológico:**
+- A diferencia de Arte & Cultura, no incluye las columnas de taller ni asignatura.
+- Los Yakus en esta área brindan apoyo psicológico y emocional a los Rurus.
+- Los patrones de horarios y disponibilidad son similares a los de otras áreas.
+- La compatibilidad con el nivel de quechua sigue siendo importante para la comunicación efectiva.
+
 ### Ejemplo de datos de Rurus (estudiantes)
 
 A continuación se muestra un ejemplo anonimizado de cómo se estructura típicamente un archivo de datos de Rurus:
@@ -128,25 +171,6 @@ A continuación se muestra un ejemplo anonimizado de cómo se estructura típica
 - **Preferencias de cursos**: Incluyen 2-3 opciones ordenadas por preferencia. Estas deben coincidir con los cursos ofrecidos por los yakus.
 - **Nivel de Quechua**: Puede ser "No lo hablo", "Nivel básico", "Nivel intermedio", "Nivel avanzado" o "Nativo".
 - **Contacto**: Generalmente corresponde a un familiar responsable (padre, madre, tutor).
-
-### Ejemplo de datos de Yakus (mentores)
-
-A continuación se muestra un ejemplo anonimizado de cómo se estructura típicamente un archivo de datos de Yakus:
-
-| Área de voluntariado | Correo electrónico | Horarios [Lunes] | Horarios [Miércoles] | Horarios [Domingo] | Niveles educativos | Nombre completo | DNI o Pasaporte | Nivel de Quechua | Horarios [Viernes] | Horarios [Martes] | Teléfono móvil | Taller dentro del área | Asignaturas | Horarios [Jueves] | Horarios [Sábado] |
-|----------------------|--------------------|-----------------|--------------------|-------------------|-------------------|----------------|----------------|-----------------|-------------------|-------------------|----------------|------------------------|------------|------------------|-------------------|
-| Arte & Cultura | ejemplo1@gmail.com | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No disponible | Primaria (3° y 4° grado) | Roberto Yimi Torres Castro | 71XXXXXX | No lo hablo | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | 97XXXXXXX | Música | No aplica | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) |
-| Arte & Cultura | ejemplo2@gmail.com | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Tarde (2pm -6 pm) | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Edith Sánchez López | 74XXXXXX | Nativo | Noche (6pm -10 pm) | Noche (6pm -10 pm) | 91XXXXXXX | Dibujo y Pintura | No aplica | Noche (6pm -10 pm) | Tarde (2pm -6 pm) |
-| Arte & Cultura | ejemplo3@hotmail.com | Tarde (2pm -6 pm) | No disponible | Mañana (8am -12 m) | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Milena Brigitte Cuenca Torres | 01XXXXXXX | No lo hablo | Mañana (8am -12 m) | Tarde (2pm -6 pm) | 99XXXXXXX | Dibujo y Pintura | No aplica | No disponible | Mañana (8am -12 m) |
-| Arte & Cultura | ejemplo4@gmail.com | Mañana (8am -12 m) | Mañana, Tarde | Mañana, Tarde | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Kelly Suliana Rodríguez Pérez | 72XXXXXX | Nativo | Tarde, Noche | Mañana, Tarde | 90XXXXXXX | Cuenta cuentos | No aplica | No disponible | Mañana, Tarde |
-| Asesoría a Colegios Nacionales | ejemplo5@gmail.com | Mañana, Tarde | No disponible | Mañana, Tarde | Primaria (3° y 4° grado), Primaria (5° y 6° grado) | Ana Shirley Condori Mamani | 72XXXXXX | No lo hablo | Tarde (2pm -6 pm) | No disponible | 92XXXXXXX | No aplica | Inglés, Matemática | No disponible | Mañana, Tarde |
-
-**Notas sobre los datos de Yakus:**
-
-- **Área de voluntariado**: Puede ser "Arte & Cultura", "Asesoría a Colegios Nacionales" o "Bienestar Psicológico".
-- **Horarios disponibles**: Normalmente se expresan como "Mañana (8am -12 m)", "Tarde (2pm -6 pm)" o "Noche (6pm -10 pm)" para cada día de la semana.
-- **Niveles educativos**: Indica los grados escolares con los que el Yaku puede trabajar.
-- **Nivel de Quechua**: Puede ser "No lo hablo", "Nivel básico", "Nivel intermedio", "Nivel avanzado" o "Nativo".
 
 ## Ventajas de la estructura modular
 
