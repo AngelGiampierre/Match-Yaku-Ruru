@@ -1,84 +1,167 @@
+"""
+Aplicación principal Match-Yaku-Ruru.
+
+Este es el punto de entrada principal de la aplicación, que integra
+los diferentes módulos: preprocesamiento, match y envío de correos.
+"""
+
 import streamlit as st
 import os
+import sys
 
-# Importar componentes
-from components.dashboard import dashboard_page
-from components.sidebar import sidebar_navigation
+# Asegurarse de que el directorio actual está en el path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Importar páginas
-from pages.match.match_page import match_main
-from pages.preprocessing.preprocess_main import preprocess_main
-from pages.email.email_page import email_main
+# Importar módulos principales
+from preprocessing.preprocessing_main import preprocessing_page
+
+# Inicializar el estado de sesión para la navegación
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "Inicio"
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Yachay Wasi Dashboard", 
-    page_icon="🔍", 
+    page_title="Match Yaku-Ruru",
+    page_icon="🔄",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Cargar estilos CSS
-with open("assets/styles.css") as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# Cargar estilos CSS si existen
+css_path = os.path.join("assets", "styles.css")
+if os.path.exists(css_path):
+    with open(css_path) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# Inicializar variables de sesión si no existen
-if "page" not in st.session_state:
-    st.session_state.page = "dashboard"
 
 def main():
     """
-    Función principal que maneja la navegación entre páginas
+    Función principal de la aplicación.
     """
-    # Mostrar la página actual según la variable de sesión
-    if st.session_state.page == "dashboard":
-        dashboard_page()
+    # Sidebar para navegación
+    st.sidebar.title("Match Yaku-Ruru")
     
-    elif st.session_state.page == "match":
-        match_main()
+    # Intentar cargar imagen si existe
+    try:
+        st.sidebar.image("https://www.hacerperu.pe/wp-content/uploads/2023/03/Yachay-Wasi.jpg", width=200)
+    except:
+        pass  # Si la imagen no existe, continuar sin error
     
-    elif st.session_state.page == "preprocessing":
-        preprocess_main()
+    # Opciones de navegación
+    page = st.sidebar.radio(
+        "Navegación",
+        options=["Inicio", "Preprocesamiento", "Match", "Envío de Correos"],
+        index=["Inicio", "Preprocesamiento", "Match", "Envío de Correos"].index(st.session_state.current_page),
+        key="navigation"
+    )
     
-    elif st.session_state.page == "email":
-        email_main()
+    # Actualizar el estado de sesión con la página actual
+    st.session_state.current_page = page
     
-    elif st.session_state.page == "docs":
-        docs_page()
+    # Mostrar página según selección
+    if page == "Inicio":
+        show_home_page()
+    elif page == "Preprocesamiento":
+        preprocessing_page()
+    elif page == "Match":
+        st.title("Match")
+        st.write("Esta sección está en desarrollo.")
+    elif page == "Envío de Correos":
+        st.title("Envío de Correos")
+        st.write("Esta sección está en desarrollo.")
     
-    else:
-        # Si la página no existe, mostrar el dashboard
-        dashboard_page()
+    # Pie de página
+    st.sidebar.markdown("---")
+    st.sidebar.info(
+        "Match Yaku-Ruru: Herramienta para optimizar la asignación "
+        "de mentores a estudiantes en Yachay Wasi."
+    )
 
-def docs_page():
+
+# Función para cambiar de página programáticamente
+def navigate_to(page_name):
+    st.session_state.current_page = page_name
+    st.rerun()
+
+
+def show_home_page():
     """
-    Página de documentación
+    Muestra la página de inicio.
     """
-    # Configurar la navegación lateral
-    sidebar_navigation()
+    st.title("Bienvenido a Match Yaku-Ruru")
     
-    st.markdown("<h1 class='main-header'>Documentación</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='info-text'>Guía de uso de la plataforma Yachay Wasi</p>", unsafe_allow_html=True)
+    st.write("""
+    Esta aplicación te ayuda a optimizar la asignación de Yakus (mentores) 
+    a Rurus (estudiantes) en Yachay Wasi, considerando criterios como:
+    
+    - Horarios disponibles
+    - Áreas de especialidad
+    - Niveles educativos
+    - Preferencias de cursos
+    - Y más...
+    """)
+    
+    # Tarjetas para cada módulo
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        ### Preprocesamiento
+        
+        Prepara tus datos antes del match:
+        
+        - Selección de columnas
+        - Validación de DNIs/Correos
+        - Filtrado por área
+        """)
+        
+        if st.button("Ir a Preprocesamiento", key="goto_preprocessing"):
+            navigate_to("Preprocesamiento")
+    
+    with col2:
+        st.markdown("""
+        ### Match
+        
+        Ejecuta el algoritmo de asignación:
+        
+        - Carga datos procesados
+        - Ajusta parámetros
+        - Visualiza resultados
+        
+        *En desarrollo*
+        """)
+        
+        if st.button("Ir a Match", key="goto_match", disabled=True):
+            navigate_to("Match")
+    
+    with col3:
+        st.markdown("""
+        ### Envío de Correos
+        
+        Comunica los resultados:
+        
+        - Envía asignaciones a Yakus
+        - Envía asignaciones a Rurus
+        - Personaliza mensajes
+        
+        *En desarrollo*
+        """)
+        
+        if st.button("Ir a Envío de Correos", key="goto_email", disabled=True):
+            navigate_to("Envío de Correos")
+    
+    st.markdown("---")
     
     st.markdown("""
-    ## Bienvenido a la documentación
+    ## ¿Cómo empezar?
     
-    Esta plataforma te permite gestionar todo el proceso de asignación de Yakus a Rurus de forma eficiente.
+    1. Ve a la sección de **Preprocesamiento** para preparar tus datos
+    2. Luego, usa la sección de **Match** para ejecutar el algoritmo
+    3. Finalmente, usa la sección de **Envío de Correos** para comunicar los resultados
     
-    ### Herramientas disponibles:
-    
-    1. **Pre-procesamiento**: Limpia y prepara los datos antes de realizar el match.
-    2. **Match Yaku-Ruru**: Asigna Yakus a Rurus de manera óptima según disponibilidad y preferencias.
-    3. **Envío de Emails**: Comunica los resultados del match a Yakus y Rurus de forma automatizada.
-    
-    ### Flujo de trabajo recomendado:
-    
-    1. Preprocesa los datos para asegurarte que están limpios y estandarizados
-    2. Ejecuta el algoritmo de match para encontrar las mejores asignaciones
-    3. Envía emails a los participantes para notificarles sus asignaciones
-    
-    Para más información, contacta al equipo de soporte.
+    Selecciona una opción en el menú lateral para comenzar.
     """)
+
 
 if __name__ == "__main__":
     main() 
