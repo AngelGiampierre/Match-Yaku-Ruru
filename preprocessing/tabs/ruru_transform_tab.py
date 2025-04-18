@@ -374,29 +374,34 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)3\s*(?:ro|°)?\s*(?:de)?\s*primaria": "Primaria (3° y 4° grado)",
         r"(?i)3\s*(?:p|primaria)": "Primaria (3° y 4° grado)",
         r"^3$|^3ro$": "Primaria (3° y 4° grado)",
+        r"(?i)tercer\s*grado$": "Primaria (3° y 4° grado)",  # Tercer grado sin especificar nivel
         
         # Cuarto de primaria
         r"(?i)cuart[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (3° y 4° grado)",
         r"(?i)4\s*(?:to|°)?\s*(?:de)?\s*primaria": "Primaria (3° y 4° grado)",
         r"(?i)4\s*(?:p|primaria)": "Primaria (3° y 4° grado)",
         r"^4$|^4to$": "Primaria (3° y 4° grado)",
+        r"(?i)cuarto\s*grado$": "Primaria (3° y 4° grado)",  # Cuarto grado sin especificar nivel
         
         # Quinto de primaria
         r"(?i)quint[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (5° y 6° grado)",
         r"(?i)5\s*(?:to|°)?\s*(?:de)?\s*primaria": "Primaria (5° y 6° grado)",
         r"(?i)5\s*(?:p|primaria)": "Primaria (5° y 6° grado)",
         r"^5$|^5to$|^5P$": "Primaria (5° y 6° grado)",
+        r"(?i)quinto\s*grado$": "Primaria (5° y 6° grado)",  # Quinto grado sin especificar nivel
         
         # Sexto de primaria
         r"(?i)sext[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (5° y 6° grado)",
         r"(?i)6\s*(?:to|°)?\s*(?:de)?\s*primaria": "Primaria (5° y 6° grado)",
         r"(?i)6\s*(?:p|primaria)": "Primaria (5° y 6° grado)",
         r"^6$|^6to$|^6TO$|^6p$": "Primaria (5° y 6° grado)",
+        r"(?i)sexto\s*grado$": "Primaria (5° y 6° grado)",  # Sexto grado sin especificar nivel
         
         # Primero de secundaria
         r"(?i)primer[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
         r"(?i)1\s*(?:ro|°)?\s*(?:de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
         r"^1$|^1ro$": "Secundaria (1°, 2° y 3° grado)",
+        r"(?i)primer\s*grado\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
         
         # Segundo de secundaria
         r"(?i)segund[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
@@ -411,18 +416,35 @@ def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
         r"(?i)primer[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (1° y 2° grado)",
         r"(?i)1\s*(?:ro|°)?\s*(?:de)?\s*primaria": "Primaria (1° y 2° grado)",
         r"(?i)segund[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (1° y 2° grado)",
-        r"(?i)2\s*(?:do|°)?\s*(?:de)?\s*primaria": "Primaria (1° y 2° grado)"
+        r"(?i)2\s*(?:do|°)?\s*(?:de)?\s*primaria": "Primaria (1° y 2° grado)",
+        r"^1$|^2$": "Primaria (1° y 2° grado)",  # Solo números 1 o 2 asumimos primaria
     }
     
     # Función para aplicar la estandarización
     def standardize_grade(grade_str):
         if pd.isna(grade_str) or not isinstance(grade_str, str):
-            return "No especificado"
+            # Si es un número entero y no string, convertirlo a string
+            if isinstance(grade_str, (int, float)) and not pd.isna(grade_str):
+                grade_str = str(int(grade_str))  # Convertir a string sin decimales
+            else:
+                return "No especificado"
             
         # Intentar con cada patrón
         for pattern, standard_grade in grado_map.items():
             if re.search(pattern, grade_str.strip()):
                 return standard_grade
+        
+        # Caso especial: si es solo un número entre 1-6, asumimos grado de primaria
+        try:
+            num = int(grade_str.strip())
+            if 1 <= num <= 2:
+                return "Primaria (1° y 2° grado)"
+            elif 3 <= num <= 4:
+                return "Primaria (3° y 4° grado)"
+            elif 5 <= num <= 6:
+                return "Primaria (5° y 6° grado)"
+        except:
+            pass
                 
         # Si no coincide con ningún patrón
         return grade_str
