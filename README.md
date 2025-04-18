@@ -151,6 +151,26 @@ En el caso de Bienestar Psicológico, la estructura es similar pero sin las colu
 - Los patrones de horarios y disponibilidad son similares a los de otras áreas.
 - La compatibilidad con el nivel de quechua sigue siendo importante para la comunicación efectiva.
 
+#### Ejemplo de datos de Yakus para Asesoría a Colegios Nacionales (ACN)
+
+Para el área de Asesoría a Colegios Nacionales, la estructura incluye la columna de asignatura pero no la de taller:
+
+| area | correo | horario_lunes | horario_martes | horario_miercoles | horario_jueves | horario_viernes | horario_sabado | horario_domingo | grado | nombre | dni | quechua | celular | asignatura |
+|------|--------|---------------|----------------|-------------------|----------------|-----------------|----------------|-----------------|-------|--------|-----|---------|---------|------------|
+| Asesoría a Colegios Nacionales | ejemplo20@gmail.com | "Mañana (8am -12 m), Tarde (2pm -6 pm)" | | | | Tarde (2pm -6 pm) | "Mañana (8am -12 m), Tarde (2pm -6 pm)" | "Mañana (8am -12 m), Tarde (2pm -6 pm)" | "Primaria (3° y 4° grado), Primaria (5° y 6° grado)" | Ana Sánchez Cervantes | 72970000 | No lo hablo | 926970000 | "Inglés, Matemática" |
+| Asesoría a Colegios Nacionales | ejemplo21@gmail.com | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | "Primaria (3° y 4° grado), Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado)" | Julia Vilca Quispe | 70343000 | No lo hablo | 979410000 | "Inglés, Matemática" |
+| Asesoría a Colegios Nacionales | ejemplo22@gmail.com | | "Tarde (2pm -6 pm), Noche (6pm -10 pm)" | "Tarde (2pm -6 pm), Noche (6pm -10 pm)" | Tarde (2pm -6 pm) | Mañana (8am -12 m) | Mañana (8am -12 m) | | "Primaria (3° y 4° grado), Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado)" | Kiara Yashira Solís | 60075000 | No lo hablo | 983870000 | "Comunicación, Matemática" |
+| Asesoría a Colegios Nacionales | ejemplo23@pronabec.edu.pe | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Primaria (5° y 6° grado) | Dilmer Delgado Vera | 71548000 | Nivel intermedio | 943800000 | "Inglés, Matemática" |
+| Asesoría a Colegios Nacionales | ejemplo24@gmail.com | Noche (6pm -10 pm) | Tarde (2pm -6 pm) | Noche (6pm -10 pm) | Mañana (8am -12 m) | Noche (6pm -10 pm) | Mañana (8am -12 m) | Mañana (8am -12 m) | "Secundaria (1°, 2° y 3° grado)" | Saori Anely Martínez | 74656000 | No lo hablo | 932450000 | Comunicación |
+| Asesoría a Colegios Nacionales | ejemplo25@gmail.com | | Noche (6pm -10 pm) | | Noche (6pm -10 pm) | | "Mañana (8am -12 m), Tarde (2pm -6 pm)" | Mañana (8am -12 m) | "Primaria (5° y 6° grado), Secundaria (1°, 2° y 3° grado)" | Judith Sánchez Jesús | 73883000 | Nivel básico | 983870000 | "Comunicación, Inglés" |
+
+**Notas sobre los datos de Asesoría a Colegios Nacionales:**
+- Esta área incluye una columna de **asignatura** en lugar de taller, con valores como "Comunicación", "Inglés" y "Matemática".
+- Los Yakus en esta área brindan refuerzo escolar en materias académicas específicas.
+- Al igual que en otras áreas, los horarios se expresan como "Mañana (8am -12 m)", "Tarde (2pm -6 pm)" o "Noche (6pm -10 pm)".
+- Algunos Yakus pueden enseñar múltiples asignaturas, como "Comunicación, Inglés, Matemática".
+- La estructura de grados y disponibilidad por día sigue el mismo patrón que en otras áreas.
+
 ### Ejemplo de datos de Rurus (estudiantes)
 
 A continuación se muestra un ejemplo anonimizado de cómo se estructura típicamente un archivo de datos de Rurus:
