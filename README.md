@@ -194,24 +194,36 @@ Para el área de Asesoría a Colegios Nacionales, la estructura incluye la colum
 
 ### Ejemplo de datos de Rurus (estudiantes)
 
-A continuación se muestra un ejemplo anonimizado de cómo se estructura típicamente un archivo de datos de Rurus:
+A continuación se muestra un ejemplo de la estructura actual de datos de Rurus (todos los datos son ficticios y se utilizan solo con fines ilustrativos):
 
-| ID | Nombres | Apellidos | DNI | Grado | Nivel | Edad | Zona | Horario_Lunes | Horario_Martes | Horario_Miércoles | Horario_Jueves | Horario_Viernes | Preferencia_Curso1 | Preferencia_Curso2 | Preferencia_Curso3 | Nivel_Quechua | Email_Contacto | Teléfono_Contacto |
-|----|---------|-----------|-----|-------|-------|------|------|---------------|----------------|-------------------|----------------|-----------------|-------------------|-------------------|-------------------|---------------|----------------|-------------------|
-| 1 | Ana María | García López | 71234567 | 5to | Primaria | 11 | Cusco - San Sebastián | Tarde | No disponible | Tarde | No disponible | Mañana | Matemática | Dibujo y Pintura | Comunicación | No lo hablo | padre_ana@ejemplo.com | 987654321 |
-| 2 | Carlos | Huamán Quispe | 72345678 | 6to | Primaria | 12 | Cusco - Centro | No disponible | Tarde | No disponible | Tarde | No disponible | Inglés | Teatro | Música | Nivel básico | madre_carlos@ejemplo.com | 912345678 |
-| 3 | Lucía | Mamani Torres | 73456789 | 1ro | Secundaria | 13 | Cusco - San Jerónimo | Mañana | No disponible | Mañana | No disponible | Tarde | Comunicación | Matemática | Danza | No lo hablo | tio_lucia@ejemplo.com | 998765432 |
-| 4 | Pedro | Condori Huamaní | 74567890 | 2do | Secundaria | 14 | Cusco - Wanchaq | No disponible | Mañana | No disponible | Mañana | No disponible | Música | Comunicación | Dibujo y Pintura | Nivel intermedio | abuelo_pedro@ejemplo.com | 945678123 |
-| 5 | Rosa | Sánchez Puma | 75678901 | 3ro | Secundaria | 15 | Cusco - Santiago | Tarde | No disponible | Tarde | No disponible | Tarde | Matemática | Inglés | Cuenta cuentos | Nivel básico | madre_rosa@ejemplo.com | 934567812 |
+| nombre | apellido | DNI | colegio | grado | idiomas | nombre_apoderado | apellido_apoderado | celular | arte_y_cultura | bienestar_psicologico | asesoria_a_colegios_nacionales | taller_opcion1 | taller_opcion2 | taller_opcion3 | asignatura_opcion1 | asignatura_opcion2 | celular_asesoria | area | horario_lunes | horario_martes | horario_miercoles | horario_jueves | horario_viernes | horario_sabado | horario_domingo | quechua |
+|--------|----------|-----|---------|-------|---------|------------------|---------------------|---------|----------------|------------------------|---------------------------------|----------------|----------------|----------------|-------------------|-------------------|------------------|------|---------------|----------------|-------------------|----------------|-----------------|----------------|-----------------|---------|
+| JUAN CARLOS | PEREZ MENDOZA | 12345678 | IE San Martín | Primaria (3° y 4° grado) | Español | MARIA ELENA | MENDOZA SANCHEZ | 951000001 | 0 | 0 | 1 | Dibujo y Pintura | Danza | Teatro | Matemática | Inglés | 951000002 | Asesoría a Colegios Nacionales | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No lo hablo |
+| GABRIELA | FLORES LUNA | 23456789 | Colegio Esperanza | Secundaria (1°, 2° y 3° grado) | Español | ROBERTO | FLORES MARTINEZ | 952000001 | 0 | 0 | 1 |  |  |  | Matemática | Comunicación | 952000002 | Asesoría a Colegios Nacionales | No disponible | No disponible | No disponible | No disponible | No disponible | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No lo hablo |
+| SOFIA | RAMIREZ TORRES | 34567890 | IE Libertadores | Primaria (3° y 4° grado) | Español | CARMEN | TORRES VEGA |  | 0 | 1 | 0 |  |  |  |  |  | 953000001 | Bienestar Psicológico | Mañana (8am -12 m) | No disponible | Mañana (8am -12 m) | No disponible | Mañana (8am -12 m) | No disponible | No disponible | No lo hablo |
+| MIGUEL | RODRIGUEZ SILVA | 45678901 | IE Garcilaso | Primaria (3° y 4° grado) | Español | LUCIA | SILVA PAREDES |  | 0 | 0 | 1 |  |  |  | Inglés | Matemática | 954000001 | Asesoría a Colegios Nacionales | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No disponible | No disponible | No lo hablo |
+| LUIS | GOMEZ VARGAS | 56789012 | IE Garcilaso | Primaria (3° y 4° grado) | Español | TERESA | VARGAS RIOS |  | 0 | 0 | 1 |  |  |  | Matemática | Comunicación | 955000001 | Asesoría a Colegios Nacionales | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No disponible | No disponible | No lo hablo |
+| PEDRO | DIAZ LOPEZ | 67890123 | Colegio América | Primaria (5° y 6° grado) | Español | JULIA | LOPEZ CASTRO | 956000001 | 0 | 0 | 1 |  |  |  | Matemática | Comunicación | 956000002 | Asesoría a Colegios Nacionales | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Noche (6pm -10 pm) | Mañana (8am -12 m) | No disponible | No lo hablo |
+| ALEJANDRO | MARTINEZ ROJAS | 78901234 | IE Garcilaso | Primaria (3° y 4° grado) | Español | PATRICIA | ROJAS MEDINA | 957000001 | 1 | 0 | 0 | Dibujo y Pintura (con internet) | Música (con internet) | Danza (con internet) |  |  | 957000002 | Arte & Cultura | Tarde (2pm -6 pm) | No disponible | Tarde (2pm -6 pm) | No disponible | No disponible | No disponible | No disponible | No lo hablo |
+| ANA | FERNANDEZ PINTO | 89012345 | IE San Martín | Primaria (5° y 6° grado) | Español Quechua | ROSA | PINTO MORALES | 958000001 | 0 | 0 | 1 |  |  |  | Matemática | Inglés | 958000002 | Asesoría a Colegios Nacionales | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No disponible | No disponible | No disponible | Nivel básico |
+| CARLOS | RIVERA CHANG | 90123456 | Colegio Esperanza | Primaria (3° y 4° grado) | Español Quechua Otro | EDUARDO | CHANG ORTIZ | 959000001 | 0 | 0 | 1 |  |  |  | Comunicación | Matemática | 959000002 | Asesoría a Colegios Nacionales | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | Tarde (2pm -6 pm) | No disponible | Nivel básico |
+| DANIELA | CASTRO NAVARRO | 10234567 | IE Garcilaso | Primaria (5° y 6° grado) | Español | JORGE | NAVARRO HUAMAN | 950000001 | 1 | 0 | 0 | Dibujo y Pintura (con internet) | Música (con internet) | Danza (con internet) |  |  | 950000002 | Arte & Cultura | No disponible | Tarde (2pm -6 pm) | No disponible | Tarde (2pm -6 pm) | No disponible | No disponible | No disponible | No lo hablo |
 
 **Notas sobre los datos de Rurus:**
 
-- **Identificación**: DNI de 8 dígitos (formato peruano) o formato alfanumérico para pasaportes extranjeros.
-- **Grado y Nivel**: Combina grado específico (1ro, 2do, etc.) con nivel educativo (Primaria/Secundaria).
-- **Horarios**: Normalmente se expresan como "Mañana", "Tarde", "Noche" o "No disponible" para cada día de la semana.
-- **Preferencias de cursos**: Incluyen 2-3 opciones ordenadas por preferencia. Estas deben coincidir con los cursos ofrecidos por los yakus.
-- **Nivel de Quechua**: Puede ser "No lo hablo", "Nivel básico", "Nivel intermedio", "Nivel avanzado" o "Nativo".
-- **Contacto**: Generalmente corresponde a un familiar responsable (padre, madre, tutor).
+- **Nombre y Apellido**: Información personal del estudiante.
+- **DNI**: Documento Nacional de Identidad, algunos tienen formato extranjero o están vacíos.
+- **Colegio**: Institución educativa a la que pertenece el estudiante.
+- **Grado**: Clasificado como "Primaria (3° y 4° grado)", "Primaria (5° y 6° grado)" o "Secundaria (1°, 2° y 3° grado)".
+- **Idiomas**: Principalmente español, algunos con quechua u otros idiomas adicionales.
+- **Datos del apoderado**: Incluye nombre, apellido y contacto del tutor responsable.
+- **Áreas de interés**: Indicadas con 1 (interesado) o 0 (no interesado) en Arte & Cultura, Bienestar Psicológico o Asesoría a Colegios Nacionales.
+- **Opciones de taller**: Para estudiantes interesados en Arte & Cultura. La especificación "(con internet)" o "(sin internet)" no afecta al algoritmo de match, solo sirve como información orientativa para el Yaku que sea finalmente asignado.
+- **Opciones de asignatura**: Para estudiantes interesados en Asesoría Académica.
+- **Horarios disponibles**: Especificados como "Mañana (8am -12 m)", "Tarde (2pm -6 pm)", "Noche (6pm -10 pm)" o "No disponible" para cada día.
+- **Nivel de quechua**: Generalmente "No lo hablo" o "Nivel básico".
+
+**Nota importante**: Todos los datos personales mostrados en este documento son completamente ficticios y se utilizan únicamente con fines ilustrativos. No corresponden a personas reales.
 
 ## Ventajas de la estructura modular
 
