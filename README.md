@@ -265,3 +265,5 @@ streamlit run app.py
    - Mejoras visuales y de accesibilidad
 
 4. Implementación de pruebas unitarias y de integración
+
+5. Incorporar IDs para Yakus y Rurus.
