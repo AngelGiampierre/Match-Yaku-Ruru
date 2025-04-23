@@ -58,13 +58,14 @@ def ruru_standardization_tab():
         
         # Definir mapeo de columnas
         # El mapeo tiene el formato {"columna_original": "columna_nueva"}
-        # Donde columna_original puede ser la posición (para Excel es 0-indexed, pero para usuario mostramos 1-indexed)
+        # Añadimos la columna F para el ID del estudiante
         column_mapping = {
+            "F": "ID del estudiante:",
             "H": "nombre",
             "I": "apellido",
             "J": "DNI",
             "K": "colegio",
-            "L": "grado",
+            "L": "Grado del estudiante:",
             "R": "idiomas",
             "AA": "nombre_apoderado",
             "AB": "apellido_apoderado",

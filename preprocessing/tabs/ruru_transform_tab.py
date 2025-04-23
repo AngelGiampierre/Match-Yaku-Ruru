@@ -51,7 +51,9 @@ def ruru_transform_tab():
         # Verificar que el archivo tiene las columnas necesarias
         required_columns = [
             "arte_y_cultura", "bienestar_psicologico", "asesoria_a_colegios_nacionales",
-            "grado", "idiomas"
+            "Grado del estudiante:",
+            "idiomas",
+            "ID del estudiante:"
         ]
         
         # También necesitamos columnas de horarios
@@ -65,7 +67,7 @@ def ruru_transform_tab():
         
         if missing_columns:
             st.error(f"❌ El archivo no contiene todas las columnas necesarias. Faltan: {', '.join(missing_columns)}")
-            st.info("Por favor, primero estandariza las columnas del archivo en la pestaña 'Estandarización de Rurus'")
+            st.info("Asegúrate de que el archivo haya sido procesado correctamente en la pestaña 'Estandarización de Rurus' y que incluya las columnas requeridas (como 'Grado del estudiante:', 'ID del estudiante:', etc.).")
         elif missing_horarios:
             st.warning(f"⚠️ Algunas columnas de horarios no se encontraron: {', '.join(missing_horarios[:5])}...")
             st.info("Es posible que algunos horarios no estén disponibles o tengan nombres diferentes")
@@ -111,36 +113,61 @@ def ruru_transform_tab():
                     st.success("✅ Formato de horarios estandarizado correctamente")
                 
                 if "grado" in selected_transformations:
-                    processed_df = standardize_grades(processed_df)
-                    st.success("✅ Grados estandarizados correctamente")
-                
-                if "idioma" in selected_transformations:
+                    # Nombres exactos de las columnas requeridas
+                    id_col = "ID del estudiante:"
+                    original_grade_col_name = "Grado del estudiante:"
+
+                    # Verificar existencia de columnas necesarias antes de llamar a la función
+                    if id_col not in processed_df.columns:
+                        st.error(f"Error: Falta la columna de ID requerida '{id_col}'.")
+                        processed_df = None
+                    elif original_grade_col_name not in processed_df.columns:
+                         st.error(f"Error: Falta la columna de grado original requerida '{original_grade_col_name}'.")
+                         processed_df = None
+
+                    if processed_df is not None:
+                        processed_df = standardize_grades(
+                            processed_df,
+                            id_column_name=id_col,
+                            original_grade_col=original_grade_col_name
+                        )
+                        # Verificar si las columnas esperadas ('grado' y 'grado_original') se crearon
+                        if 'grado' in processed_df.columns and 'grado_original' in processed_df.columns:
+                            st.success(f"✅ Grados de '{original_grade_col_name}' estandarizados en columna 'grado' (y conservados en 'grado_original')")
+                        else:
+                            # Esto podría pasar si la función tuvo un error interno y devolvió el df original
+                            st.warning("⚠️ Hubo un problema al estandarizar los grados. Verifica las columnas de salida.")
+                            # Podríamos considerar `processed_df = None` si esto es un error crítico
+
+                if "idioma" in selected_transformations and processed_df is not None:
                     processed_df = standardize_languages(processed_df)
                     st.success("✅ Idiomas estandarizados correctamente")
-                
-                # Guardar resultado en estado de sesión
-                save_data(processed_df, "ruru_transformed_df")
-                
-                # Mostrar resultado
-                st.subheader("Resultado de la transformación")
-                preview_dataframe(
-                    processed_df,
-                    rows=10,
-                    title="Vista previa de datos transformados",
-                    expanded=True,
-                    key="preview_transformed"
-                )
-                
-                # Botones de descarga
-                st.subheader("Descargar resultados")
-                base_filename = "rurus_transformados"
-                if ruru_file_name:
-                    base_filename = f"{ruru_file_name.split('.')[0]}_transformado"
-                
-                show_download_buttons(processed_df, base_filename)
+
+                # Guardar y mostrar resultados (solo si processed_df no es None)
+                if processed_df is not None:
+                    # Guardar resultado en estado de sesión
+                    save_data(processed_df, "ruru_transformed_df")
+
+                    # Mostrar resultado
+                    st.subheader("Resultado de la transformación")
+                    preview_dataframe(
+                        processed_df,
+                        rows=10,
+                        title="Vista previa de datos transformados",
+                        expanded=True,
+                        key="preview_transformed"
+                    )
+
+                    # Botones de descarga
+                    st.subheader("Descargar resultados")
+                    base_filename = "rurus_transformados"
+                    if ruru_file_name:
+                        base_filename = f"{ruru_file_name.split('.')[0]}_transformado"
+                    
+                    show_download_buttons(processed_df, base_filename)
         else:
             # Archivo tiene todas las columnas necesarias
-            st.success("✅ Archivo cargado correctamente con todas las columnas necesarias")
+            st.success("✅ Archivo cargado correctamente con todas las columnas necesarias (incluyendo 'Grado del estudiante:' y 'ID del estudiante:')")
             
             # Mostrar vista previa
             st.subheader("Vista previa de datos cargados")
@@ -169,8 +196,7 @@ def ruru_transform_tab():
                     selected_transformations.append(key)
             
             # Botón para aplicar transformaciones
-            if selected_transformations and st.button("Aplicar transformaciones", key="apply_transforms"):
-                # Copiar DataFrame original
+            if selected_transformations and st.button("Aplicar transformaciones", key="apply_transforms_alt"):
                 processed_df = ruru_df.copy()
                 
                 # Aplicar transformaciones seleccionadas
@@ -183,33 +209,52 @@ def ruru_transform_tab():
                     st.success("✅ Formato de horarios estandarizado correctamente")
                 
                 if "grado" in selected_transformations:
-                    processed_df = standardize_grades(processed_df)
-                    st.success("✅ Grados estandarizados correctamente")
-                
-                if "idioma" in selected_transformations:
+                    id_col = "ID del estudiante:"
+                    original_grade_col_name = "Grado del estudiante:"
+                    if id_col not in processed_df.columns:
+                        st.error(f"Error: Falta la columna de ID requerida '{id_col}'.")
+                        processed_df = None
+                    elif original_grade_col_name not in processed_df.columns:
+                         st.error(f"Error: Falta la columna de grado original requerida '{original_grade_col_name}'.")
+                         processed_df = None
+
+                    if processed_df is not None:
+                        processed_df = standardize_grades(
+                            processed_df,
+                            id_column_name=id_col,
+                            original_grade_col=original_grade_col_name
+                        )
+                        if 'grado' in processed_df.columns and 'grado_original' in processed_df.columns:
+                            st.success(f"✅ Grados estandarizados (conservando original)")
+                        else:
+                            st.warning("⚠️ Problema al estandarizar grados.")
+
+                if "idioma" in selected_transformations and processed_df is not None:
                     processed_df = standardize_languages(processed_df)
                     st.success("✅ Idiomas estandarizados correctamente")
-                
-                # Guardar resultado en estado de sesión
-                save_data(processed_df, "ruru_transformed_df")
-                
-                # Mostrar resultado
-                st.subheader("Resultado de la transformación")
-                preview_dataframe(
-                    processed_df,
-                    rows=10,
-                    title="Vista previa de datos transformados",
-                    expanded=True,
-                    key="preview_transformed"
-                )
-                
-                # Botones de descarga
-                st.subheader("Descargar resultados")
-                base_filename = "rurus_transformados"
-                if ruru_file_name:
-                    base_filename = f"{ruru_file_name.split('.')[0]}_transformado"
-                
-                show_download_buttons(processed_df, base_filename)
+
+                # Guardar y mostrar resultados (solo si processed_df no es None)
+                if processed_df is not None:
+                    # Guardar resultado en estado de sesión
+                    save_data(processed_df, "ruru_transformed_df")
+
+                    # Mostrar resultado
+                    st.subheader("Resultado de la transformación")
+                    preview_dataframe(
+                        processed_df,
+                        rows=10,
+                        title="Vista previa de datos transformados",
+                        expanded=True,
+                        key="preview_transformed"
+                    )
+
+                    # Botones de descarga
+                    st.subheader("Descargar resultados")
+                    base_filename = "rurus_transformados"
+                    if ruru_file_name:
+                        base_filename = f"{ruru_file_name.split('.')[0]}_transformado"
+                    
+                    show_download_buttons(processed_df, base_filename)
         
         # Cargar datos transformados del estado de sesión (si están disponibles)
     elif load_data("ruru_transformed_df") is not None:
@@ -360,133 +405,92 @@ def standardize_schedules(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def standardize_grades(df: pd.DataFrame) -> pd.DataFrame:
+def standardize_grades(df: pd.DataFrame, id_column_name: str = "ID del estudiante:", original_grade_col: str = "Grado del estudiante:") -> pd.DataFrame:
     """
-    Estandariza los grados escolares para coincidir con el formato de Yakus.
-    
-    Args:
-        df: DataFrame con columna de grados
-        
-    Returns:
-        DataFrame con grados estandarizados
+    Estandariza los grados escolares usando búsqueda de palabras clave.
     """
-    if "grado" not in df.columns:
+    # Verificar columna de grado original
+    if original_grade_col not in df.columns:
+        st.warning(f"⚠️ La columna de grado original '{original_grade_col}' no se encontró. No se puede estandarizar.")
         return df
-    
-    # Mapa de estandarización para grados
-    # Cada patrón se mapea a un formato estandarizado
-    grado_map = {
-        # Tercero de primaria (todas las variantes)
-        r"(?i)terc[eoa]r[oa]?\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (3° y 4° grado)",
-        r"(?i)3\s*(?:ro|°)?\s*(?:de)?\s*primaria": "Primaria (3° y 4° grado)",
-        r"(?i)3\s*(?:p|primaria)": "Primaria (3° y 4° grado)",
-        r"^3$|^3ro$": "Primaria (3° y 4° grado)",
-        r"(?i)tercer\s*grado$": "Primaria (3° y 4° grado)",  # Tercer grado sin especificar nivel
-        r"(?i)3ro\s*de\s*primaria": "Primaria (3° y 4° grado)",  # Caso específico
-        
-        # Cuarto de primaria
-        r"(?i)cuart[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (3° y 4° grado)",
-        r"(?i)4\s*(?:to|°)?\s*(?:de)?\s*primaria": "Primaria (3° y 4° grado)",
-        r"(?i)4\s*(?:p|primaria)": "Primaria (3° y 4° grado)",
-        r"^4$|^4to$": "Primaria (3° y 4° grado)",
-        r"(?i)cuarto\s*grado$": "Primaria (3° y 4° grado)",  # Cuarto grado sin especificar nivel
-        r"(?i)4to\s*grado\s*de\s*primaria": "Primaria (3° y 4° grado)",  # Caso específico
-        r"(?i)4to\s*grado\s*primaria": "Primaria (3° y 4° grado)",  # Caso específico sin "de"
-        
-        # Quinto de primaria
-        r"(?i)quint[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (5° y 6° grado)",
-        r"(?i)5\s*(?:to|°)?\s*(?:de)?\s*primaria": "Primaria (5° y 6° grado)",
-        r"(?i)5\s*(?:p|primaria)": "Primaria (5° y 6° grado)",
-        r"^5$|^5to$|^5P$": "Primaria (5° y 6° grado)",
-        r"(?i)quinto\s*grado$": "Primaria (5° y 6° grado)",  # Quinto grado sin especificar nivel
-        r"(?i)5to\s*grado\s*de\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico
-        r"(?i)5to\s*grado\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico sin "de"
-        
-        # Sexto de primaria
-        r"(?i)sext[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (5° y 6° grado)",
-        r"(?i)6\s*(?:to|°)?\s*(?:de)?\s*primaria": "Primaria (5° y 6° grado)",
-        r"(?i)6\s*(?:p|primaria)": "Primaria (5° y 6° grado)",
-        r"^6$|^6to$|^6TO$|^6p$": "Primaria (5° y 6° grado)",
-        r"(?i)sexto\s*grado$": "Primaria (5° y 6° grado)",  # Sexto grado sin especificar nivel
-        r"(?i)6to\s*grado\s*de\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico
-        r"(?i)6to\s*grado\s*primaria": "Primaria (5° y 6° grado)",  # Caso específico sin "de"
-        
-        # Primero de secundaria
-        r"(?i)primer[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        r"(?i)1\s*(?:ro|°)?\s*(?:de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        r"^1$|^1ro$": "Secundaria (1°, 2° y 3° grado)",
-        r"(?i)primer\s*grado\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        
-        # Segundo de secundaria
-        r"(?i)segund[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        r"(?i)2\s*(?:do|°)?\s*(?:de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        r"^2$|^2do$": "Secundaria (1°, 2° y 3° grado)",
-        r"(?i)2\s*de\s*secundaria": "Secundaria (1°, 2° y 3° grado)",  # Caso específico
-        
-        # Tercero de secundaria
-        r"(?i)tercer[oa]\s*(?:grado)?(?:\s*de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        r"(?i)3\s*(?:ro|°)?\s*(?:de)?\s*secundaria": "Secundaria (1°, 2° y 3° grado)",
-        
-        # Primero y segundo de primaria (no tan común, pero por si acaso)
-        r"(?i)primer[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (1° y 2° grado)",
-        r"(?i)1\s*(?:ro|°)?\s*(?:de)?\s*primaria": "Primaria (1° y 2° grado)",
-        r"(?i)segund[oa]\s*(?:grado)?(?:\s*de)?\s*primaria": "Primaria (1° y 2° grado)",
-        r"(?i)2\s*(?:do|°)?\s*(?:de)?\s*primaria": "Primaria (1° y 2° grado)",
-        r"^1$|^2$": "Primaria (1° y 2° grado)",  # Solo números 1 o 2 asumimos primaria
-    }
-    
-    # Función para aplicar la estandarización
-    def standardize_grade(grade_str):
-        if pd.isna(grade_str) or not isinstance(grade_str, str):
-            # Si es un número entero y no string, convertirlo a string
-            if isinstance(grade_str, (int, float)) and not pd.isna(grade_str):
-                grade_str = str(int(grade_str))  # Convertir a string sin decimales
-            else:
-                return "No especificado"
-            
-        # Limpiar la cadena (eliminar espacios extra y normalizar)
-        grade_str = grade_str.strip()
-        
-        # Imprimir para debug casos difíciles
-        # print(f"Estandarizando: '{grade_str}'")
-        
-        # Intentar con cada patrón
-        for pattern, standard_grade in grado_map.items():
-            if re.search(pattern, grade_str.strip()):
-                # print(f"  Coincide con patrón: {pattern}")
-                return standard_grade
-        
-        # Caso especial: si es solo un número entre 1-6, asumimos grado de primaria
-        try:
-            num = int(grade_str.strip())
-            if 1 <= num <= 2:
-                return "Primaria (1° y 2° grado)"
-            elif 3 <= num <= 4:
-                return "Primaria (3° y 4° grado)"
-            elif 5 <= num <= 6:
-                return "Primaria (5° y 6° grado)"
-        except:
-            pass
-                
-        # Si no coincide con ningún patrón
-        # print(f"  No coincide con ningún patrón")
-        return grade_str
-    
-    # Aplicar estandarización
-    df["grado"] = df["grado"].apply(standardize_grade)
-    
+
+    # Verificar si existe la columna de ID
+    if id_column_name not in df.columns:
+        st.warning(f"⚠️ La columna de ID '{id_column_name}' no se encontró. Asegúrate de que exista para el reporte final.")
+        # Considerar manejo de error si el ID es absolutamente crucial
+
+    # Conservar el grado original
+    df['grado_original'] = df[original_grade_col].astype(str)
+
+    # Función interna para aplicar la estandarización con palabras clave
+    def standardize_grade_value(grade_str):
+        if pd.isna(grade_str):
+            return "No especificado"
+
+        # Limpiar, convertir a minúsculas
+        lower_grade = str(grade_str).strip().lower()
+
+        if not lower_grade:
+             return "No especificado"
+
+        # --- Lógica de Palabras Clave ---
+        # ** Añadir caso especial para "2 primaria" **
+        if "2" in lower_grade and "primaria" in lower_grade and "segundo" not in lower_grade: # Evitar conflicto con "segundo" si existe
+            return "Primaria (3° y 4° grado)" # Mapeo especial solicitado
+
+        # Primaria (Continuar con las demás reglas)
+        elif "tercero" in lower_grade and "primaria" in lower_grade:
+            return "Primaria (3° y 4° grado)"
+        elif "cuarto" in lower_grade and "primaria" in lower_grade:
+            return "Primaria (3° y 4° grado)"
+        elif "quinto" in lower_grade and "primaria" in lower_grade:
+            return "Primaria (5° y 6° grado)"
+        elif "sexto" in lower_grade and "primaria" in lower_grade:
+            return "Primaria (5° y 6° grado)"
+        elif "primero" in lower_grade and "primaria" in lower_grade:
+             return "Primaria (1° y 2° grado)"
+        elif "segundo" in lower_grade and "primaria" in lower_grade:
+             # Esta regla ahora no se aplicará si "2 primaria" ya coincidió antes
+             return "Primaria (1° y 2° grado)"
+        # Secundaria
+        elif "primero" in lower_grade and "secundaria" in lower_grade:
+            return "Secundaria (1°, 2° y 3° grado)"
+        elif "segundo" in lower_grade and "secundaria" in lower_grade:
+            return "Secundaria (1°, 2° y 3° grado)"
+        elif "tercero" in lower_grade and "secundaria" in lower_grade:
+            return "Secundaria (1°, 2° y 3° grado)"
+
+        # Fallback: Si ninguna combinación coincide, devolver el original limpiado
+        return str(grade_str).strip() # Devolver el original (sin convertir a minúscula)
+
+    # Aplicar estandarización para crear la nueva columna 'grado'
+    df["grado"] = df['grado_original'].apply(standardize_grade_value)
+
     # Añadir registro estadístico
-    valores_no_estandarizados = df["grado"][~df["grado"].isin([
-        "Primaria (1° y 2° grado)", 
-        "Primaria (3° y 4° grado)", 
+    standard_grades_list = [
+        "Primaria (1° y 2° grado)",
+        "Primaria (3° y 4° grado)",
         "Primaria (5° y 6° grado)",
         "Secundaria (1°, 2° y 3° grado)",
         "No especificado"
-    ])].unique()
-    
+    ]
+    valores_no_estandarizados = df["grado"][
+        ~df["grado"].isin(standard_grades_list) & (df["grado"] != "No especificado")
+    ].unique()
+
     if len(valores_no_estandarizados) > 0:
-        st.warning(f"⚠️ Algunos valores de grado no pudieron ser estandarizados: {valores_no_estandarizados}")
-    
+        st.warning(f"⚠️ Algunos valores de grado ('{original_grade_col}') no pudieron ser estandarizados a un formato conocido y se mantuvieron como están en la columna 'grado': {list(valores_no_estandarizados)}")
+
+    # Reordenar columnas (opcional, para poner grado_original cerca de grado)
+    cols = df.columns.tolist()
+    if 'grado' in cols and 'grado_original' in cols:
+        try:
+            # Mover 'grado_original' justo después de 'grado'
+            cols.insert(cols.index('grado') + 1, cols.pop(cols.index('grado_original')))
+            df = df[cols]
+        except ValueError: # En caso de que 'grado' no esté presente por algún error
+            pass
+
     return df
 
 

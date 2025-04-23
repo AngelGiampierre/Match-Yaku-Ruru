@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Importar módulos principales
 from preprocessing.preprocessing_main import preprocessing_page
+from match.match_main import match_page # Asegúrate que match_page esté definida en match_main.py
 
 # Inicializar el estado de sesión para la navegación
 if "current_page" not in st.session_state:
@@ -64,8 +65,8 @@ def main():
     elif page == "Preprocesamiento":
         preprocessing_page()
     elif page == "Match":
-        st.title("Match")
-        st.write("Esta sección está en desarrollo.")
+        # --- LLAMAR A LA FUNCIÓN DE LA PÁGINA MATCH ---
+        match_page()
     elif page == "Envío de Correos":
         st.title("Envío de Correos")
         st.write("Esta sección está en desarrollo.")
@@ -125,13 +126,13 @@ def show_home_page():
         Ejecuta el algoritmo de asignación:
         
         - Carga datos procesados
-        - Ajusta parámetros
-        - Visualiza resultados
+        - Ejecuta el match por área
+        - Visualiza y descarga resultados
         
         *En desarrollo*
         """)
         
-        if st.button("Ir a Match", key="goto_match", disabled=True):
+        if st.button("Ir a Match", key="goto_match", disabled=False):
             navigate_to("Match")
     
     with col3:
