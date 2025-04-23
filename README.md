@@ -36,8 +36,20 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 │       ├── file_io.py             # Operaciones con archivos
 │       └── temp_storage.py        # Almacenamiento temporal
 │
-├── match/                         # Módulo de match (a implementar)
-│   └── ...
+├── match/                         # Módulo de match (asignación)
+│   ├── __init__.py
+│   ├── match_main.py              # Página principal Streamlit para Match
+│   ├── core/                      # Lógica central del match
+│   │   ├── __init__.py
+│   │   ├── data_loader.py         # Carga y preparación de datos Yaku/Ruru
+│   │   ├── scorer.py              # Cálculo de compatibilidad y puntuación
+│   │   └── assignment.py          # Algoritmo de asignación 1-a-1
+│   ├── ui/                        # Componentes UI para Match
+│   │   ├── __init__.py
+│   │   └── match_display.py       # Funciones para mostrar resultados del match
+│   └── utils/                     # Utilidades para Match
+│       ├── __init__.py
+│       └── output_generator.py    # Generación de archivos Excel de salida
 │
 ├── email/                         # Módulo de envío de emails (a implementar)
 │   └── ...
@@ -126,6 +138,23 @@ El módulo de preprocesamiento está estructurado siguiendo un enfoque modular q
    - Detección de nivel de quechua basado en texto libre
    - Advertencia sobre valores que no pudieron ser estandarizados
    - Exportación de datos completamente transformados listos para el proceso de match
+
+### Match (Asignación)
+
+1.  **Carga y Selección de Área**: Permite cargar archivos Excel de Yakus para un área específica (ACN, Arte, Bienestar) y el archivo general de Rurus preprocesados.
+2.  **Validación de Datos**: Verifica que los archivos cargados contengan las columnas necesarias y que el área del archivo de Yakus coincida con la seleccionada.
+3.  **Filtrado por Área**: Filtra automáticamente la lista de Rurus para incluir solo aquellos interesados en el área seleccionada.
+4.  **Generación de IDs**: Asigna IDs únicos a los Yakus (`YA25xxx`) con prefijos numéricos distintos por área (0xx para Bienestar, 1xx para Arte, 2xx para ACN).
+5.  **Cálculo de Puntuación**: Evalúa cada posible par Yaku-Ruru basado en:
+    -   **Horarios**: Requiere al menos 1 bloque coincidente; bonificación por >= 2 bloques.
+    -   **Quechua**: Bonificación si Ruru (Básico+) es compatible con Yaku (Intermedio+).
+    -   **Asignatura/Taller**: Bonificación según la prioridad de la opción del Ruru que coincide con el Yaku (Prio 1 > Prio 2 > Prio 3). Se ignoran notas informativas como "(con internet)".
+6.  **Algoritmo de Asignación**: Utiliza un método greedy para asignar pares 1-a-1, priorizando aquellos con mayor puntuación de compatibilidad.
+7.  **Visualización de Resultados**: Muestra métricas resumen y tablas detalladas de:
+    -   Asignaciones realizadas (ID Ruru, ID Yaku, Nombres, Área, Asignatura/Taller, Grado Ruru, Score, Horarios, Contactos, etc.).
+    -   Yakus no asignados con su información relevante.
+    -   Rurus no asignados con su información relevante.
+8.  **Descarga de Resultados**: Genera un archivo Excel con hojas separadas para las asignaciones, Yakus no asignados y Rurus no asignados.
 
 ## Ejemplos de Datos
 
