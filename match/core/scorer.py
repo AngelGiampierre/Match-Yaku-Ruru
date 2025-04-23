@@ -64,12 +64,22 @@ def _clean_taller_name(taller_str: str) -> str:
         return ""
     # Convertir a string, eliminar espacios extra al inicio/final
     cleaned = str(taller_str).strip()
-    # Eliminar paréntesis y su contenido (si contienen 'internet')
-    cleaned = re.sub(r'\s*\((?:con|sin)\s+internet\)\s*$', '', cleaned, flags=re.IGNORECASE)
-    return cleaned.strip().lower() # Devolver en minúsculas y sin espacios finales
+    # Regex más robusta: busca el patrón en cualquier lugar, maneja más espacios internos/externos
+    # Busca '(', opcionalmente espacios, 'con' o 'sin', 1+ espacios, 'internet', opcionalmente espacios, ')'
+    # No asume que está al final ($)
+    cleaned = re.sub(r'\s*\(\s*(?:con|sin)\s+internet\s*\)\s*', '', cleaned, flags=re.IGNORECASE)
+    # Eliminar espacios dobles que puedan quedar y quitar espacios finales de nuevo
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned.lower() # Devolver en minúsculas
 
 def check_subject_taller_compatibility(yaku_row: pd.Series, ruru_row: pd.Series, area: str) -> int:
     """Verifica compatibilidad de asignatura/taller y devuelve prioridad (1, 2, 3 o 0)."""
+    # --- Añadir Debugging Prints ---
+    print_debug = False # Cambia a True para activar los prints
+    ruru_id_debug = ruru_row.get('ID del estudiante:', 'N/A') # ID para identificar al Ruru
+    yaku_id_debug = yaku_row.get('yaku_id', 'N/A') # ID para identificar al Yaku
+    # --- Fin Añadir Debugging Prints ---
+
     if area == "Asesoría a Colegios Nacionales":
         yaku_subjects_str = yaku_row.get('asignatura', '')
         yaku_subjects_str = str(yaku_subjects_str) if pd.notna(yaku_subjects_str) else ''
@@ -86,21 +96,41 @@ def check_subject_taller_compatibility(yaku_row: pd.Series, ruru_row: pd.Series,
             return 0
     elif area == "Arte & Cultura":
         # Limpiar nombre del taller del Yaku
-        yaku_taller = _clean_taller_name(yaku_row.get('taller', ''))
+        yaku_taller_raw = yaku_row.get('taller', '')
+        yaku_taller = _clean_taller_name(yaku_taller_raw)
 
         # Limpiar nombres de las opciones de taller del Ruru
-        ruru_prio1_clean = _clean_taller_name(ruru_row.get('taller_opcion1', ''))
-        ruru_prio2_clean = _clean_taller_name(ruru_row.get('taller_opcion2', ''))
-        ruru_prio3_clean = _clean_taller_name(ruru_row.get('taller_opcion3', ''))
+        ruru_prio1_raw = ruru_row.get('taller_opcion1', '')
+        ruru_prio2_raw = ruru_row.get('taller_opcion2', '')
+        ruru_prio3_raw = ruru_row.get('taller_opcion3', '')
+        ruru_prio1_clean = _clean_taller_name(ruru_prio1_raw)
+        ruru_prio2_clean = _clean_taller_name(ruru_prio2_raw)
+        ruru_prio3_clean = _clean_taller_name(ruru_prio3_raw)
+
+        # --- Debug Print para Arte & Cultura ---
+        if print_debug: # Solo imprimir si está activado
+             # Imprimir IDs y valores antes y después de limpiar
+             print(f"\n--- DEBUG: Arte Match ---")
+             print(f"Ruru ID: {ruru_id_debug}")
+             print(f"  Op1 Raw: '{ruru_prio1_raw}' -> Clean: '{ruru_prio1_clean}'")
+             print(f"  Op2 Raw: '{ruru_prio2_raw}' -> Clean: '{ruru_prio2_clean}'")
+             print(f"  Op3 Raw: '{ruru_prio3_raw}' -> Clean: '{ruru_prio3_clean}'")
+             print(f"Yaku ID: {yaku_id_debug}")
+             print(f"  Taller Raw: '{yaku_taller_raw}' -> Clean: '{yaku_taller}'")
+        # --- Fin Debug Print ---
 
         # Comparar usando los nombres limpios
         if yaku_taller and yaku_taller == ruru_prio1_clean:
+            if print_debug: print("  Match: Prio 1")
             return 1
         elif yaku_taller and yaku_taller == ruru_prio2_clean:
+            if print_debug: print("  Match: Prio 2")
             return 2
         elif yaku_taller and yaku_taller == ruru_prio3_clean:
+            if print_debug: print("  Match: Prio 3")
             return 3
         else:
+            if print_debug and yaku_taller: print("  Match: None") # Solo si Yaku tenía taller
             return 0
     else: # Bienestar Psicológico u otras áreas
         return 0
