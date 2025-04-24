@@ -1,0 +1,1 @@
+# Core del módulo de envío de correos 

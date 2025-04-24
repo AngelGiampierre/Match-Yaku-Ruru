@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Importar módulos principales
 from preprocessing.preprocessing_main import preprocessing_page
 from match.match_main import match_page # Asegúrate que match_page esté definida en match_main.py
+from email.email_main import email_page
 
 # Inicializar el estado de sesión para la navegación
 if "current_page" not in st.session_state:
@@ -68,8 +69,8 @@ def main():
         # --- LLAMAR A LA FUNCIÓN DE LA PÁGINA MATCH ---
         match_page()
     elif page == "Envío de Correos":
-        st.title("Envío de Correos")
-        st.write("Esta sección está en desarrollo.")
+        # --- LLAMAR A LA PÁGINA DE EMAIL ---
+        email_page()
     
     # Pie de página
     st.sidebar.markdown("---")
@@ -142,13 +143,11 @@ def show_home_page():
         Comunica los resultados:
         
         - Envía asignaciones a Yakus
-        - Envía asignaciones a Rurus
-        - Personaliza mensajes
-        
-        *En desarrollo*
+        - Carga resultados del match
+        - Envío por lotes
         """)
         
-        if st.button("Ir a Envío de Correos", key="goto_email", disabled=True):
+        if st.button("Ir a Envío de Correos", key="goto_email", disabled=False):
             navigate_to("Envío de Correos")
     
     st.markdown("---")
