@@ -51,8 +51,15 @@ La aplicación está estructurada de forma modular para facilitar el mantenimien
 │       ├── __init__.py
 │       └── output_generator.py    # Generación de archivos Excel de salida
 │
-├── email/                         # Módulo de envío de emails (a implementar)
-│   └── ...
+├── email/                         # Módulo de Envío de Correos
+│   ├── __init__.py
+│   ├── email_main.py              # Página principal Streamlit para Email
+│   ├── core/                      # Lógica central del envío
+│   │   ├── __init__.py
+│   │   ├── email_sender.py        # Funcionalidad de conexión SMTP y envío
+│   │   └── template_manager.py    # Gestión de plantillas y personalización
+│   └── utils/                     # Utilidades (si son necesarias)
+│       └── __init__.py
 │
 └── shared/                        # Utilidades compartidas
     ├── __init__.py
