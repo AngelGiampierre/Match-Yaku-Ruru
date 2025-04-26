@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Importar módulos principales
 from preprocessing.preprocessing_main import preprocessing_page
 from match.match_main import match_page # Asegúrate que match_page esté definida en match_main.py
-from email.email_main import email_page
+from emailing.email_main import email_page
 
 # Inicializar el estado de sesión para la navegación
 if "current_page" not in st.session_state:
