@@ -81,11 +81,11 @@ def format_assigned_output(
     merged_df['Score Match'] = merged_df['score']
     merged_df['ID Ruru'] = merged_df['ruru_id']
     merged_df['ID Yaku'] = merged_df['yaku_id']
-    merged_df['DNI Ruru'] = merged_df.get('DNI', '').astype(str)
-    merged_df['DNI Yaku'] = merged_df.get('dni', '').astype(str)
-    merged_df['Celular Yaku'] = merged_df.get('celular_yaku', '').astype(str)
-    merged_df['Celular Apoderado Ruru'] = merged_df.get('celular_ruru', '').astype(str)
-    merged_df['Celular Asesoria Ruru'] = merged_df.get('celular_asesoria', '').astype(str)
+    merged_df['DNI Ruru'] = merged_df.get('DNI', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
+    merged_df['DNI Yaku'] = merged_df.get('dni', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
+    merged_df['Celular Yaku'] = merged_df.get('celular_yaku', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
+    merged_df['Celular Apoderado Ruru'] = merged_df.get('celular_ruru', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
+    merged_df['Celular Asesoria Ruru'] = merged_df.get('celular_asesoria', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
     merged_df['Correo Yaku'] = merged_df['correo']
     merged_df['Quechua Yaku'] = merged_df['quechua_yaku']
     merged_df['Quechua Ruru'] = merged_df['quechua_ruru']
@@ -105,14 +105,31 @@ def format_assigned_output(
 
 
     # 4. Seleccionar y ordenar columnas finales
-    # Filtrar la lista de orden deseado para incluir solo columnas que existen en merged_df
     final_columns_present = [col for col in ASSIGNED_OUTPUT_COLUMNS_ORDER if col in merged_df.columns]
     final_df = merged_df[final_columns_present].copy()
 
-    # Opcional: asegurar tipos string de nuevo en el DF final por si acaso
-    for col in ['DNI Ruru', 'DNI Yaku', 'Celular Yaku', 'Celular Apoderado Ruru', 'Celular Asesoria Ruru']:
-        if col in final_df.columns:
-            final_df[col] = final_df[col].astype(str)
+    # --- FORZAR TIPO STRING y Limpiar para DNI/Celulares (Revisado) ---
+    def clean_str_number(val):
+        if pd.isna(val):
+            return ''
+        try:
+            # Intentar convertir a entero primero para eliminar decimales/notación científica
+            # Luego a string
+            cleaned_val = str(int(float(str(val))))
+        except (ValueError, TypeError):
+            # Si falla (ej. ya es un string con caracteres no numéricos), usar el string original
+            cleaned_val = str(val).strip()
+        # Eliminar '.0' residual por si acaso (aunque int() debería quitarlo)
+        if cleaned_val.endswith('.0'):
+            cleaned_val = cleaned_val[:-2]
+        return cleaned_val
+
+    merged_df['DNI Ruru'] = merged_df.get('DNI', '').apply(clean_str_number)
+    merged_df['DNI Yaku'] = merged_df.get('dni', '').apply(clean_str_number)
+    merged_df['Celular Yaku'] = merged_df.get('celular_yaku', '').apply(clean_str_number)
+    merged_df['Celular Apoderado Ruru'] = merged_df.get('celular_ruru', '').apply(clean_str_number)
+    merged_df['Celular Asesoria Ruru'] = merged_df.get('celular_asesoria', '').apply(clean_str_number)
+    # --- FIN FORZAR TIPO ---
 
     return final_df
 
@@ -134,11 +151,21 @@ def format_unassigned_output(
     final_columns = [col for col in output_columns if col in unassigned_df.columns]
     final_unassigned_df = unassigned_df[final_columns].copy()
 
-    # --- FORZAR TIPO STRING para DNI/Celulares ---
+    # --- FORZAR TIPO STRING y Limpiar para DNI/Celulares (Revisado) ---
+    def clean_str_number(val):
+        if pd.isna(val): return ''
+        try:
+            cleaned_val = str(int(float(str(val))))
+        except (ValueError, TypeError):
+            cleaned_val = str(val).strip()
+        if cleaned_val.endswith('.0'):
+            cleaned_val = cleaned_val[:-2]
+        return cleaned_val
+
     cols_to_str = ['DNI', 'dni', 'celular', 'celular_asesoria']
     for col in cols_to_str:
         if col in final_unassigned_df.columns:
-            final_unassigned_df[col] = final_unassigned_df[col].astype(str)
+            final_unassigned_df[col] = final_unassigned_df[col].apply(clean_str_number)
     # --- FIN FORZAR TIPO ---
 
     return final_unassigned_df

@@ -14,7 +14,18 @@ from .tabs.dni_validation_tab import dni_validation_tab
 from .tabs.filter_area_tab import filter_area_tab
 from .tabs.ruru_standardization_tab import ruru_standardization_tab
 from .tabs.ruru_transform_tab import ruru_transform_tab
+from .tabs.update_match_results_tab import update_match_results_tab
 
+# Mapeo de nombres de tabs a funciones
+# (Añadir el nuevo tab al final o donde prefieras)
+TAB_MAP = {
+    "Selección de Columnas": column_selection_tab,
+    "Validación DNI/Correo": dni_validation_tab,
+    "Filtrado por Área/ID": filter_area_tab,
+    "Estandarización Rurus": ruru_standardization_tab,
+    "Transformación Rurus": ruru_transform_tab,
+    "Actualizar Resultados Match": update_match_results_tab, # <-- Nuevo Tab
+}
 
 def preprocessing_page():
     """
@@ -27,26 +38,16 @@ def preprocessing_page():
     Selecciona una de las siguientes opciones para comenzar.
     """)
     
-    # Definir tabs disponibles y sus funciones
-    tabs = {
-        "Selección de Columnas": column_selection_tab,
-        "Validación de DNIs/Correos": dni_validation_tab,
-        "Filtrado por Área": filter_area_tab,
-        "Estandarización de Rurus": ruru_standardization_tab,
-        "Transformación de Rurus": ruru_transform_tab
-    }
+    # Crear pestañas usando st.tabs
+    tab_names = list(TAB_MAP.keys())
+    tabs = st.tabs(tab_names)
     
-    # Crear tabs en la interfaz
-    tab_names = list(tabs.keys())
-    tab_functions = list(tabs.values())
-    
-    # Usar st.tabs para crear los tabs
-    selected_tabs = st.tabs(tab_names)
-    
-    # Ejecutar la función correspondiente a cada tab
-    for i, tab in enumerate(selected_tabs):
-        with tab:
-            tab_functions[i]()
+    # Renderizar el contenido de cada tab
+    for i, tab_name in enumerate(tab_names):
+        with tabs[i]:
+            # Llamar a la función correspondiente al tab
+            tab_function = TAB_MAP[tab_name]
+            tab_function()
 
 
 if __name__ == "__main__":

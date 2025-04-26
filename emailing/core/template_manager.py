@@ -51,8 +51,9 @@ def get_yaku_email_body(assignment_data: pd.Series) -> str:
         'Nombre Apoderado Ruru', 'Celular Apoderado Ruru', 'Quechua Yaku', 'Quechua Ruru'
     ]
     for placeholder in placeholders:
-        value = assignment_data.get(placeholder, '') # Obtener valor o string vacío
-        html_body = html_body.replace(f"[{placeholder}]", str(value)) # Convertir a string
+        value = assignment_data.get(placeholder, '')
+        replacement_value = str(value)
+        html_body = html_body.replace(f"[{placeholder}]", replacement_value)
 
     # Reemplazos condicionales
     # Asignatura/Taller

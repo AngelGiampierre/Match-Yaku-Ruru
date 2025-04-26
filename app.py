@@ -16,6 +16,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from preprocessing.preprocessing_main import preprocessing_page
 from match.match_main import match_page # Asegúrate que match_page esté definida en match_main.py
 from emailing.email_main import email_page
+from match.tabs.manual_assignment_tab import manual_assignment_tab # Ajusta la ruta si la moviste
 
 # Inicializar el estado de sesión para la navegación
 if "current_page" not in st.session_state:
@@ -50,10 +51,11 @@ def main():
         pass  # Si la imagen no existe, continuar sin error
     
     # Opciones de navegación
+    nav_options = ["Inicio", "Preprocesamiento", "Match", "Ajustes Manuales", "Envío de Correos"]
     page = st.sidebar.radio(
         "Navegación",
-        options=["Inicio", "Preprocesamiento", "Match", "Envío de Correos"],
-        index=["Inicio", "Preprocesamiento", "Match", "Envío de Correos"].index(st.session_state.current_page),
+        nav_options,
+        index=nav_options.index(st.session_state.current_page),
         key="navigation"
     )
     
@@ -68,6 +70,8 @@ def main():
     elif page == "Match":
         # --- LLAMAR A LA FUNCIÓN DE LA PÁGINA MATCH ---
         match_page()
+    elif page == "Ajustes Manuales":
+        manual_assignment_tab()
     elif page == "Envío de Correos":
         # --- LLAMAR A LA PÁGINA DE EMAIL ---
         email_page()
@@ -138,16 +142,15 @@ def show_home_page():
     
     with col3:
         st.markdown("""
-        ### Envío de Correos
-        
-        Comunica los resultados:
-        
-        - Envía asignaciones a Yakus
+        ### Preparación de Correos
+
+        Prepara correos para Yakus:
+
         - Carga resultados del match
-        - Envío por lotes
+        - Genera texto personalizado
+        - Copia y envía manualmente
         """)
-        
-        if st.button("Ir a Envío de Correos", key="goto_email", disabled=False):
+        if st.button("Ir a Preparación de Correos", key="goto_email", disabled=False):
             navigate_to("Envío de Correos")
     
     st.markdown("---")

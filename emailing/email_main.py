@@ -1,27 +1,28 @@
 """
-Página principal del módulo de Envío de Correos en Streamlit.
+Página principal del módulo de Preparación Manual de Correos en Streamlit.
 
-Permite cargar el archivo de resultados del match y enviar correos
-personalizados a los Yakus asignados.
+Permite cargar el archivo de resultados del match, seleccionar una asignación
+y obtener el asunto y cuerpo del correo personalizado para el Yaku, listo para copiar.
 """
 import streamlit as st
 import pandas as pd
-import time # Importar time para posible delay
 
-# Importaciones futuras
-# from .core.email_sender import send_single_email
-# from .core.template_manager import get_yaku_email_body
-
-# --- MODIFICADO: Descomentar e importar funciones ---
-from .core.email_sender import send_single_email
+# Importar solo el gestor de plantillas
 from .core.template_manager import get_yaku_email_body
 
+# Columnas mínimas requeridas en la hoja 'Asignaciones'
+REQUIRED_ASSIGNMENT_COLS = [
+    'Correo Yaku', 'Nombre Yaku', 'Nombre Ruru', 'Grado Original Ruru', 'Area',
+    'Nombre Apoderado Ruru', 'Celular Apoderado Ruru', 'Celular Asesoria Ruru',
+    'Quechua Yaku', 'Quechua Ruru', 'Asignatura/Taller Asignado'
+]
+
 def email_page():
-    """Renderiza la página de envío de correos."""
-    st.title(" Módulo de Envío de Correos")
+    """Renderiza la página de preparación manual de correos."""
+    st.title(" Módulo de Preparación Manual de Correos")
     st.write("""
-    Carga el archivo Excel con los resultados del match y envía correos
-    de notificación a cada Yaku asignado.
+    Carga el archivo Excel con los resultados del match, selecciona una asignación
+    y copia el asunto y el cuerpo del correo para enviarlo manualmente a cada Yaku.
     """)
 
     # --- Carga de Archivo de Resultados ---
@@ -29,110 +30,111 @@ def email_page():
     uploaded_results_file = st.file_uploader(
         "Cargar archivo Excel de resultados (generado por el módulo Match)",
         type=["xlsx", "xls"],
-        key="email_results_upload" # Añadir key única
+        key="email_prep_results_upload"
     )
 
-    assignments_df = None
-    if 'assignments_email_df' not in st.session_state:
-         st.session_state.assignments_email_df = None
+    # Usar estado de sesión para el DataFrame
+    if 'assignments_prep_df' not in st.session_state:
+         st.session_state.assignments_prep_df = None
 
     if uploaded_results_file:
-        # Cargar solo si no está ya en el estado de sesión o si cambia el archivo
-        # (Evita recargar cada vez que se interactúa con la página)
-        # Nota: Streamlit podría re-ejecutar y perder el estado si no se maneja con cuidado.
-        # Por simplicidad, recargaremos si hay un archivo nuevo.
         try:
-            # Leer específicamente la hoja de asignaciones
             temp_df = pd.read_excel(uploaded_results_file, sheet_name='Asignaciones')
-            # Validar columnas necesarias para el correo
-            required_cols = [
-                'Correo Yaku', 'Nombre Yaku', 'Nombre Ruru', 'Grado Original Ruru', 'Area',
-                'Nombre Apoderado Ruru', 'Celular Apoderado Ruru', 'Celular Asesoria Ruru',
-                'Quechua Yaku', 'Quechua Ruru', 'Asignatura/Taller Asignado' # Asegurarse que estas existen
-            ]
-            missing = [col for col in required_cols if col not in temp_df.columns]
+            missing = [col for col in REQUIRED_ASSIGNMENT_COLS if col not in temp_df.columns]
             if missing:
                 st.error(f"❌ El archivo Excel no contiene las columnas requeridas en la hoja 'Asignaciones': {', '.join(missing)}")
-                st.session_state.assignments_email_df = None # Invalidar
+                st.session_state.assignments_prep_df = None
             else:
-                st.session_state.assignments_email_df = temp_df # Guardar en estado si es válido
-                st.success(f"✅ Archivo de resultados cargado. Se encontraron {len(st.session_state.assignments_email_df)} asignaciones.")
-                with st.expander("Vista previa de Asignaciones"):
-                    st.dataframe(st.session_state.assignments_email_df.head())
+                # Crear una columna legible para el selector
+                temp_df['display_label'] = temp_df.apply(lambda row: f"{row['Nombre Yaku']} - {row['Nombre Ruru']} ({row['ID Yaku']})", axis=1)
+                st.session_state.assignments_prep_df = temp_df
+                st.success(f"✅ Archivo de resultados cargado. Se encontraron {len(st.session_state.assignments_prep_df)} asignaciones.")
+                with st.expander("Vista previa de Asignaciones Cargadas"):
+                    st.dataframe(st.session_state.assignments_prep_df[['display_label', 'ID Yaku', 'ID Ruru', 'Correo Yaku']].head())
 
         except Exception as e:
             st.error(f"❌ Error al leer la hoja 'Asignaciones' del archivo Excel: {e}")
-            st.session_state.assignments_email_df = None
+            st.session_state.assignments_prep_df = None
 
     # Acceder al DataFrame desde el estado de sesión
-    assignments_df = st.session_state.assignments_email_df
+    assignments_df = st.session_state.assignments_prep_df
 
-    # --- Envío de Correos ---
-    st.header("2. Enviar Correos a Yakus")
-    if assignments_df is not None:
-        num_assignments = len(assignments_df)
-        st.info(f"Listo para enviar {num_assignments} correos a los Yakus asignados.")
+    # --- Selección de Asignación y Generación de Correo ---
+    st.header("2. Preparar Correo Individual")
 
-        # Selección opcional para enviar solo algunos
-        send_all = st.checkbox("Enviar a todos los Yakus listados", value=True, key="send_all_check")
-        num_to_send = num_assignments
-        if not send_all:
-            num_to_send = st.number_input("Número de correos de prueba a enviar:", min_value=1, max_value=num_assignments, value=1, step=1, key="num_test_emails")
+    if assignments_df is not None and not assignments_df.empty:
+        # Selector para elegir la asignación
+        assignment_labels = assignments_df['display_label'].tolist()
+        selected_label = st.selectbox(
+            "Selecciona la asignación para preparar el correo:",
+            options=assignment_labels,
+            index=0, # Empezar con la primera por defecto
+            key="assignment_selector"
+        )
 
-        # Opcional: Delay entre correos para evitar rate limiting
-        delay_seconds = st.number_input("Delay entre correos (segundos):", min_value=0.0, max_value=10.0, value=0.5, step=0.1, key="email_delay", help="Pequeño delay para evitar ser bloqueado por el proveedor de correo (ej. 0.5)")
+        if selected_label:
+            # Obtener la fila completa de datos para la selección
+            selected_row = assignments_df[assignments_df['display_label'] == selected_label].iloc[0]
 
-        if st.button(f"Enviar {num_to_send if not send_all else 'todos los'} correos", key="send_button"):
-            if num_to_send > 0:
-                 data_to_send = assignments_df.head(num_to_send) if not send_all else assignments_df
-                 progress_bar = st.progress(0)
-                 success_count = 0
-                 error_count = 0
-                 errors = []
-                 total_to_process = len(data_to_send)
+            # Generar contenido del correo
+            email_to = selected_row.get('Correo Yaku', 'Correo no encontrado')
+            ruru_name = selected_row.get('Nombre Ruru', 'N/A')
+            subject = f"¡Asignación Yachay Wasi: Conoce a tu Ruru {ruru_name}!"
+            try:
+                html_body = get_yaku_email_body(selected_row)
 
-                 st.write(f"Iniciando envío de {total_to_process} correos...")
+                st.subheader("Correo Listo para Copiar y Pegar:")
 
-                 for index, row in data_to_send.iterrows():
-                     # Validar correo del destinatario
-                     email_to = row.get('Correo Yaku')
-                     if pd.isna(email_to) or not isinstance(email_to, str) or '@' not in email_to:
-                         error_msg = f"Correo inválido o faltante para Yaku '{row.get('Nombre Yaku', 'Desconocido')}' (Índice: {index}). Saltando."
-                         st.warning(error_msg)
-                         errors.append(error_msg)
-                         error_count += 1
-                         # Actualizar progreso
-                         progress = (index + 1) / total_to_process
-                         progress_bar.progress(min(1.0, progress))
-                         continue # Saltar al siguiente
+                # --- Destinatario y Asunto ---
+                st.write("Destinatario (Para):")
+                st.code(email_to, language='text')
+                st.write("Asunto:")
+                st.code(subject, language='text')
+                # --- Fin Destinatario y Asunto ---
 
-                     # Construir Asunto y Cuerpo
-                     subject = f"¡Asignación Yachay Wasi: Conoce a tu Ruru {row.get('Nombre Ruru', 'N/A')}!"
-                     try:
-                         html_body = get_yaku_email_body(row)
-                         # Enviar Correo
-                         send_single_email(email_to, subject, html_body)
-                         success_count += 1
-                         # Pequeño delay
-                         time.sleep(delay_seconds)
-                     except Exception as e:
-                         error_count += 1
-                         error_detail = f"Error enviando a {email_to} (Yaku: {row.get('Nombre Yaku', 'N/A')}): {str(e)}"
-                         errors.append(error_detail)
-                         st.warning(error_detail) # Mostrar advertencia en UI
+                st.markdown("---") # Separador
 
-                     # Actualizar progreso
-                     progress = (index + 1) / total_to_process
-                     progress_bar.progress(min(1.0, progress))
+                # --- Cuerpo del Correo (Renderizado con Fondo Blanco Forzado) ---
+                st.write("**Cuerpo del Correo (Selecciona y Copia el texto de abajo):**")
 
+                # --- CSS Personalizado para Forzar Fondo Blanco ---
+                # Este CSS apunta a un div con la clase 'email-preview-container'
+                # que pondremos alrededor del markdown. !important asegura prioridad.
+                st.markdown("""
+                <style>
+                .email-preview-container {
+                    background-color: white !important;
+                    color: black !important; /* Asegura texto legible */
+                    padding: 15px;
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                }
+                /* Asegura que los elementos dentro hereden el color de texto */
+                .email-preview-container * {
+                    color: black !important;
+                    background-color: transparent !important; /* Evita otros fondos internos */
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                # --- Fin CSS Personalizado ---
 
-                 progress_bar.empty() # Limpiar barra de progreso
-                 st.success(f"Proceso finalizado: {success_count} correos enviados exitosamente.")
-                 if error_count > 0:
-                      st.error(f"{error_count} correos fallaron o fueron saltados.")
-                      with st.expander("Ver errores detallados"):
-                           st.json({"errors": errors}) # Mostrar errores en formato json para legibilidad
-            else:
-                 st.warning("No hay correos seleccionados para enviar.")
+                # Envolver el markdown en un div con la clase específica
+                st.markdown(f'<div class="email-preview-container">{html_body}</div>', unsafe_allow_html=True)
+                # --- Fin Cuerpo del Correo ---
+
+                st.markdown("---") # Separador
+
+                # --- Instrucciones Simplificadas ---
+                st.info(
+                    "**Instrucciones para Enviar Manualmente:**\n"
+                    "1. Usa los botones de copia para 'Destinatario' y 'Asunto' y pégalos en Gmail.\n"
+                    "2. Selecciona TODO el texto dentro del cuadro **'Cuerpo del Correo'** de arriba.\n"
+                    "3. Copia el texto seleccionado (Ctrl+C o Cmd+C) y pégalo en el cuerpo de Gmail.\n"
+                    "4. El formato y el fondo *deberían* pegarse correctamente ahora. Revisa y envía."
+                 )
+
+            except Exception as e:
+                st.error(f"Error al generar el cuerpo del correo: {e}")
+
     else:
-        st.info("Carga el archivo de resultados del match para habilitar el envío.") 
+        st.info("Carga un archivo de resultados válido para preparar los correos.") 
