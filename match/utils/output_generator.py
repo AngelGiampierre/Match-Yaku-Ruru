@@ -27,6 +27,24 @@ ASSIGNED_OUTPUT_COLUMNS_ORDER = [
 UNASSIGNED_YAKU_COLS = ['yaku_id', 'nombre', 'dni', 'correo', 'celular', 'area', 'grado', 'quechua', 'asignatura', 'taller', 'horario_lunes', 'horario_martes', 'horario_miercoles', 'horario_jueves', 'horario_viernes', 'horario_sabado', 'horario_domingo']
 UNASSIGNED_RURU_COLS = ['ID del estudiante:', 'nombre', 'apellido', 'DNI', 'area', 'grado_original', 'quechua', 'asignatura_opcion1', 'asignatura_opcion2', 'taller_opcion1', 'taller_opcion2', 'taller_opcion3', 'horario_lunes', 'horario_martes', 'horario_miercoles', 'horario_jueves', 'horario_viernes', 'horario_sabado', 'horario_domingo']
 
+# --- MOVER clean_str_number AQUÍ ---
+def clean_str_number(val):
+    """Limpia números leídos de Excel/pandas, convirtiéndolos a string limpio."""
+    if pd.isna(val) or val == '':
+        return ''
+    try:
+        # Intentar convertir a entero primero para eliminar decimales/notación científica
+        # Luego a string
+        cleaned_val = str(int(float(str(val))))
+    except (ValueError, TypeError):
+        # Si falla (ej. ya es un string con caracteres no numéricos), usar el string original
+        cleaned_val = str(val).strip()
+    # Eliminar '.0' residual por si acaso (aunque int() debería quitarlo)
+    if cleaned_val.endswith('.0'):
+        cleaned_val = cleaned_val[:-2]
+    return cleaned_val
+# --- FIN MOVER clean_str_number ---
+
 
 def format_assigned_output(
     assigned_df: pd.DataFrame,
@@ -81,11 +99,11 @@ def format_assigned_output(
     merged_df['Score Match'] = merged_df['score']
     merged_df['ID Ruru'] = merged_df['ruru_id']
     merged_df['ID Yaku'] = merged_df['yaku_id']
-    merged_df['DNI Ruru'] = merged_df.get('DNI', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
-    merged_df['DNI Yaku'] = merged_df.get('dni', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
-    merged_df['Celular Yaku'] = merged_df.get('celular_yaku', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
-    merged_df['Celular Apoderado Ruru'] = merged_df.get('celular_ruru', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
-    merged_df['Celular Asesoria Ruru'] = merged_df.get('celular_asesoria', '').apply(lambda x: str(x).strip() if pd.notna(x) else '')
+    merged_df['DNI Ruru'] = merged_df.get('DNI', '').apply(clean_str_number)
+    merged_df['DNI Yaku'] = merged_df.get('dni', '').apply(clean_str_number)
+    merged_df['Celular Yaku'] = merged_df.get('celular_yaku', '').apply(clean_str_number)
+    merged_df['Celular Apoderado Ruru'] = merged_df.get('celular_ruru', '').apply(clean_str_number)
+    merged_df['Celular Asesoria Ruru'] = merged_df.get('celular_asesoria', '').apply(clean_str_number)
     merged_df['Correo Yaku'] = merged_df['correo']
     merged_df['Quechua Yaku'] = merged_df['quechua_yaku']
     merged_df['Quechua Ruru'] = merged_df['quechua_ruru']
@@ -108,29 +126,6 @@ def format_assigned_output(
     final_columns_present = [col for col in ASSIGNED_OUTPUT_COLUMNS_ORDER if col in merged_df.columns]
     final_df = merged_df[final_columns_present].copy()
 
-    # --- FORZAR TIPO STRING y Limpiar para DNI/Celulares (Revisado) ---
-    def clean_str_number(val):
-        if pd.isna(val):
-            return ''
-        try:
-            # Intentar convertir a entero primero para eliminar decimales/notación científica
-            # Luego a string
-            cleaned_val = str(int(float(str(val))))
-        except (ValueError, TypeError):
-            # Si falla (ej. ya es un string con caracteres no numéricos), usar el string original
-            cleaned_val = str(val).strip()
-        # Eliminar '.0' residual por si acaso (aunque int() debería quitarlo)
-        if cleaned_val.endswith('.0'):
-            cleaned_val = cleaned_val[:-2]
-        return cleaned_val
-
-    merged_df['DNI Ruru'] = merged_df.get('DNI', '').apply(clean_str_number)
-    merged_df['DNI Yaku'] = merged_df.get('dni', '').apply(clean_str_number)
-    merged_df['Celular Yaku'] = merged_df.get('celular_yaku', '').apply(clean_str_number)
-    merged_df['Celular Apoderado Ruru'] = merged_df.get('celular_ruru', '').apply(clean_str_number)
-    merged_df['Celular Asesoria Ruru'] = merged_df.get('celular_asesoria', '').apply(clean_str_number)
-    # --- FIN FORZAR TIPO ---
-
     return final_df
 
 def format_unassigned_output(
@@ -152,16 +147,7 @@ def format_unassigned_output(
     final_unassigned_df = unassigned_df[final_columns].copy()
 
     # --- FORZAR TIPO STRING y Limpiar para DNI/Celulares (Revisado) ---
-    def clean_str_number(val):
-        if pd.isna(val): return ''
-        try:
-            cleaned_val = str(int(float(str(val))))
-        except (ValueError, TypeError):
-            cleaned_val = str(val).strip()
-        if cleaned_val.endswith('.0'):
-            cleaned_val = cleaned_val[:-2]
-        return cleaned_val
-
+    # Se usa la función definida a nivel de módulo
     cols_to_str = ['DNI', 'dni', 'celular', 'celular_asesoria']
     for col in cols_to_str:
         if col in final_unassigned_df.columns:

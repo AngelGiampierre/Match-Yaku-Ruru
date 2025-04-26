@@ -17,6 +17,7 @@ from preprocessing.preprocessing_main import preprocessing_page
 from match.match_main import match_page # Asegúrate que match_page esté definida en match_main.py
 from emailing.email_main import email_page
 from match.tabs.manual_assignment_tab import manual_assignment_tab # Ajusta la ruta si la moviste
+from match.tabs.final_update_tab import final_update_tab # Ajusta la ruta si es necesario
 
 # Inicializar el estado de sesión para la navegación
 if "current_page" not in st.session_state:
@@ -51,7 +52,7 @@ def main():
         pass  # Si la imagen no existe, continuar sin error
     
     # Opciones de navegación
-    nav_options = ["Inicio", "Preprocesamiento", "Match", "Ajustes Manuales", "Envío de Correos"]
+    nav_options = ["Inicio", "Preprocesamiento", "Match", "Ajustes Manuales", "Actualizar Match Final", "Envío de Correos"]
     page = st.sidebar.radio(
         "Navegación",
         nav_options,
@@ -72,6 +73,8 @@ def main():
         match_page()
     elif page == "Ajustes Manuales":
         manual_assignment_tab()
+    elif page == "Actualizar Match Final":
+        final_update_tab()
     elif page == "Envío de Correos":
         # --- LLAMAR A LA PÁGINA DE EMAIL ---
         email_page()
