@@ -53,7 +53,7 @@ def send_single_email(recipient_email: str, subject: str, html_content: str):
             server.starttls() # Secure the connection
             server.ehlo() # Can be omitted
             server.login(EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
-            server.sendmail(sender_email, recipient_email, message.as_string())
+            server.sendmail(sender_email, recipient_email, message.as_bytes())
         print(f"Correo enviado exitosamente a {recipient_email}") # Log para consola
     except smtplib.SMTPAuthenticationError:
         st.error(f"Error de autenticación SMTP. Verifica usuario/contraseña o configuración de 'Contraseña de aplicación' en Gmail.")
