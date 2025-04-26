@@ -192,20 +192,22 @@ def card_generator_tab():
                             ruru_id = str(row.get('ID Ruru', '')).strip()
                             try:
                                 with tempfile.TemporaryDirectory() as temp_dir:
-                                    # Renderizar DOCX
                                     doc = DocxTemplate(template_file)
                                     context = {}
+                                    # Llenar context (campos comunes)
                                     context['ID_Ruru'] = ruru_id
                                     prefix = get_prefix(ruru_id)
                                     context['Colegio'] = MAPEO_COLEGIO.get(prefix, 'N/A')
                                     context['Ciudad'] = MAPEO_CIUDAD.get(prefix, 'N/A')
                                     context['Grado_Original_Ruru'] = str(row.get('Grado Original Ruru', 'N/A')).strip()
+                                    # Lógica Quechua (igual)
                                     quechua_raw = str(row.get('Quechua Ruru', 'N/A')).strip()
                                     if quechua_raw == "No lo hablo": context['Quechua_Ruru'] = "Español"
                                     elif quechua_raw == "Nivel básico": context['Quechua_Ruru'] = "Español y Quechua"
                                     else: context['Quechua_Ruru'] = quechua_raw
                                     context['Nombre_Ruru'] = str(row.get('Nombre Ruru', '')).strip()
-                                    context['Area'] = area_actual
+                                    context['Area'] = area_actual # Usar el área seleccionada
+                                    # Lógica Apoderado y Celulares (igual)
                                     nombre_apod_raw = str(row.get('Nombre Apoderado Ruru', '')).strip()
                                     if nombre_apod_raw.lower() == 'nan': context['Nombre_Apoderado_Ruru'] = ""
                                     else: context['Nombre_Apoderado_Ruru'] = nombre_apod_raw
@@ -218,11 +220,26 @@ def card_generator_tab():
                                     else:
                                         context['Celular_del_Apoderado'] = ""
                                         context['Celular_Apoderado_Ruru'] = ""
+                                    # Lógica Horarios (igual)
                                     for dia in ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']:
                                         col_excel = f'Horario {dia} Ruru'
                                         tag_plantilla = f'Horario_{dia}_Ruru'
                                         context[tag_plantilla] = format_schedule(row.get(col_excel))
 
+                                    # --- LÓGICA POR ÁREA ---
+                                    col_asignatura_taller = 'Asignatura/Taller Asignado' # Nombre de columna en Excel
+
+                                    if area_actual == "Arte & Cultura":
+                                        taller_asignado_val = str(row.get(col_asignatura_taller, 'N/A')).strip()
+                                        context['Taller_asignado'] = taller_asignado_val # {{ Taller_asignado }}
+                                    elif area_actual == "Asesoría a Colegios Nacionales":
+                                        asignatura_val = str(row.get(col_asignatura_taller, 'N/A')).strip()
+                                        context['Asignatura'] = asignatura_val # {{ Asignatura }}
+                                    # else: # Podrías añadir lógica para Bienestar Psicológico si tuviera campos específicos
+                                    #     pass
+                                    # --- FIN LÓGICA POR ÁREA ---
+
+                                    # Renderizar DOCX
                                     doc.render(context)
                                     temp_docx_path = os.path.join(temp_dir, f"{ruru_id}.docx")
                                     doc.save(temp_docx_path)
