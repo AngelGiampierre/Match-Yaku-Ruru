@@ -20,6 +20,7 @@ from match.tabs.manual_assignment_tab import manual_assignment_tab # Ajusta la r
 from match.tabs.final_update_tab import final_update_tab # Ajusta la ruta si es necesario
 from match.tabs.card_generator_tab import card_generator_tab
 from match.tabs.email_generator_tab import email_generator_tab
+from match.tabs.yaku_analysis_tab import yaku_analysis_tab
 
 # Inicializar el estado de sesión para la navegación
 if "current_page" not in st.session_state:
@@ -54,7 +55,7 @@ def main():
         pass  # Si la imagen no existe, continuar sin error
     
     # Opciones de navegación
-    nav_options = ["Inicio", "Preprocesamiento", "Match", "Ajustes Manuales", "Actualizar Match Final", "Generador Tarjetas", "Generador Correos", "Envío de Correos"]
+    nav_options = ["Inicio", "Preprocesamiento", "Match", "Ajustes Manuales", "Actualizar Match Final", "Generador Tarjetas", "Generador Correos", "Análisis de Yakus"]
     page = st.sidebar.radio(
         "Navegación",
         nav_options,
@@ -81,9 +82,8 @@ def main():
         card_generator_tab()
     elif page == "Generador Correos":
         email_generator_tab()
-    elif page == "Envío de Correos":
-        # --- LLAMAR A LA PÁGINA DE EMAIL ---
-        email_page()
+    elif page == "Análisis de Yakus":
+        yaku_analysis_tab()
     
     # Pie de página
     st.sidebar.markdown("---")
@@ -160,7 +160,7 @@ def show_home_page():
         - Copia y envía manualmente
         """)
         if st.button("Ir a Preparación de Correos", key="goto_email", disabled=False):
-            navigate_to("Envío de Correos")
+            navigate_to("Generador Correos")
     
     st.markdown("---")
     
@@ -169,7 +169,7 @@ def show_home_page():
     
     1. Ve a la sección de **Preprocesamiento** para preparar tus datos
     2. Luego, usa la sección de **Match** para ejecutar el algoritmo
-    3. Finalmente, usa la sección de **Envío de Correos** para comunicar los resultados
+    3. Finalmente, usa la sección de **Generador de Correos** para comunicar los resultados
     
     Selecciona una opción en el menú lateral para comenzar.
     """)
